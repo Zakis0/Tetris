@@ -6,6 +6,11 @@ using namespace std;
 #define FIELD_WIDTH 10
 #define FIELD_HEIGHT 16
 
+const int SCORE_1_LINE = 100;
+const int SCORE_2_LINE = 300;
+const int SCORE_3_LINE = 700;
+const int SCORE_4_LINE = 1500;
+
 const int NUM_OF_ROTATION = 4;
 const int NUM_OF_BLOCK_IN_PIECE = 4;
 
@@ -17,11 +22,31 @@ const char S_BlockChar = '&';
 const char T_BlockChar = 'G';
 const char Z_BlockChar = 'W';
 
+const int MOVE_DOWN = 0;
+const int MOVE_LEFT = 1;
+const int MOVE_RIGHT = 2;
+const int HARD_DROP = 3;
+const int SPIN_CLOCKWISE = 4;
+const int SPIN_COUNTERCLOCKWISE = 5;
+const int HELD_PIECE = 6;
+
+const char CONTROL_MOVE_DOWN = 's';
+const char CONTROL_MOVE_LEFT = 'a';
+const char CONTROL_MOVE_RIGHT = 'd';
+const char CONTROL_HARD_DROP = 'w';
+const char CONTROL_SPIN_CLOCKWISE = 'e';
+const char CONTROL_SPIN_COUNTERCLOCKWISE = 'q';
+const char CONTROL_HELD_PIECE = ' ';
+
 const char EMPTY_PIXEL_CHAR = '-';
 
 char field[FIELD_HEIGHT][FIELD_WIDTH];
 
 const int FIELD_MIDDLE = FIELD_WIDTH / 2 - 1;
+
+int score;
+
+int totalClearedLines;
 
 void initField() {
     for (int i = 0; i < FIELD_HEIGHT; ++i) {
@@ -120,28 +145,32 @@ public:
         y2 += dY;
         y3 += dY;
         y4 += dY;
+
+        xCenter += dX;
+        yCenter += dY;
     }
     void cantMoveDown() {
         setPixels();
     }
     bool moveDown() {
         clearPixels();
-        if (max_(NUM_OF_BLOCK_IN_PIECE, y1, y2, y3, y4) + 1 < FIELD_HEIGHT &&
+        if (max_(NUM_OF_BLOCK_IN_PIECE, y1, y2, y3, y4) < FIELD_HEIGHT &&
             isFieldEmpty(0, 1)) {
             cordBias(0, 1);
-            ++yCenter;
             setPixels();
             return true;
         }
         setPixels();
         return false;
     }
+    void hardDrop() {
+        while (moveDown());
+    }
     void moveRight() {
         clearPixels();
-        if (max_(NUM_OF_BLOCK_IN_PIECE, x1, x2, x3, x4) + 1 < FIELD_WIDTH &&
+        if (max_(NUM_OF_BLOCK_IN_PIECE, x1, x2, x3, x4) < FIELD_WIDTH &&
             isFieldEmpty(1, 0)) {
             cordBias(1, 0);
-            ++xCenter;
         }
         setPixels();
     }
@@ -150,7 +179,6 @@ public:
         if (min_(NUM_OF_BLOCK_IN_PIECE, x1, x2, x3, x4) >= 0 &&
             isFieldEmpty(-1, 0)) {
             cordBias(-1, 0);
-            --xCenter;
         }
         setPixels();
     }
@@ -410,8 +438,8 @@ void Piece::I_Test(bool clockwise) {
                 cordBias(2, 1);
                 return;
             }
-            if (isFieldEmpty(-1, -2)) {
-                cordBias(-1, -2);
+            if (isFieldEmpty(-1, -1)) {
+                cordBias(-1, -1);
                 return;
             }
         }
@@ -436,20 +464,20 @@ void Piece::I_Test(bool clockwise) {
             }
         }
         else if (rotNum == 1) {
-            if (isFieldEmpty(1, 0)) {
-                cordBias(1, 0);
-                return;
-            }
             if (isFieldEmpty(-2, 0)) {
                 cordBias(-2, 0);
                 return;
             }
-            if (isFieldEmpty(1, -2)) {
-                cordBias(1, -2);
+            if (isFieldEmpty(1, 0)) {
+                cordBias(1, 0);
                 return;
             }
             if (isFieldEmpty(-2, 1)) {
                 cordBias(-2, 1);
+                return;
+            }
+            if (isFieldEmpty(1, -1)) {
+                cordBias(1, -1);
                 return;
             }
         }
@@ -508,8 +536,6 @@ public:
 
         xCenter = FIELD_MIDDLE + 0.5f;
         yCenter = 0.5f;
-        
-        setPixels();
     }
 
     void spin(bool clockwise) override {
@@ -579,8 +605,6 @@ public:
 
         xCenter = FIELD_MIDDLE;
         yCenter = 1;
-
-        setPixels();
     }
 
     void spin(bool clockwise) override {
@@ -642,8 +666,6 @@ public:
 
         xCenter = FIELD_MIDDLE;
         yCenter = 1;
-
-        setPixels();
     }
 
     void spin(bool clockwise) override {
@@ -705,8 +727,6 @@ public:
 
         xCenter = FIELD_MIDDLE + 0.5f;
         yCenter = 0.5f;
-
-        setPixels();
     }
     void wallKickSpin(bool clockwise) {}
 };
@@ -727,8 +747,6 @@ public:
 
         xCenter = FIELD_MIDDLE;
         yCenter = 1;
-
-        setPixels();
     }
 
     void spin(bool clockwise) override {
@@ -790,8 +808,6 @@ public:
 
         xCenter = FIELD_MIDDLE;
         yCenter = 1;
-
-        setPixels();
     }
 
     void spin(bool clockwise) override {
@@ -853,8 +869,6 @@ public:
 
         xCenter = FIELD_MIDDLE;
         yCenter = 1;
-
-        setPixels();
     }
 
     void spin(bool clockwise) override {
@@ -943,44 +957,126 @@ int clearLines() {
     return numOfClearLines;
 }
 
+int getAction() {
+    char c;
+    cin >> c;
+    switch (c) {
+        case CONTROL_MOVE_DOWN: {
+            return 0;
+        }
+        case CONTROL_MOVE_LEFT: {
+            return 1;
+        }
+        case CONTROL_MOVE_RIGHT: {
+            return 2;
+        }
+        case CONTROL_HARD_DROP: {
+            return 3;
+        }
+        case CONTROL_SPIN_CLOCKWISE: {
+            return 4;
+        }
+        case CONTROL_SPIN_COUNTERCLOCKWISE: {
+            return 5;
+        }
+        case CONTROL_HELD_PIECE: {
+            return 6;
+        }
+    }
+    return '0';
+}
+
+void checkLines() {
+    int numOfClearedLines = clearLines();
+    totalClearedLines += numOfClearedLines;
+    switch (numOfClearedLines) {
+        case 1: {
+            score += SCORE_1_LINE;
+            break;
+        }
+        case 2: {
+            score += SCORE_2_LINE;
+            break;
+        }
+        case 3: {
+            score += SCORE_3_LINE;
+            break;
+        }
+        case 4: {
+            score += SCORE_4_LINE;
+            break;
+        }
+    }
+}
+
+bool checkLose() {
+    for (int i = 0; i < FIELD_WIDTH; ++i) {
+        if (field[0][i] != EMPTY_PIXEL_CHAR) return true;
+    }
+    return false;
+}
+
+void endGame() {
+    cout << "Score: " << score << endl;
+    cout << "Num of cleared lines: " << totalClearedLines << endl;
+
+}
+
 void tetris() {
     init();
-    Piece *piece;
-    int numOfClearedLines = 0;
-    while (true) {
-        piece = getRandPiece();
-        while (piece->moveDown()) {
-            switch (getRand(0, 3)) {
-                case 0: {
-                    piece->moveLeft();
+    Piece *nextPiece = getRandPiece(), *curPiece;
+    int action;
+
+    score = 0;
+    totalClearedLines = 0;
+
+    while (!checkLose()) {
+        curPiece = nextPiece;
+        nextPiece = getRandPiece();
+        curPiece->setPixels();
+        printField();
+        while (curPiece->moveDown()) {
+            action = getAction();
+            switch (action) {
+                case MOVE_DOWN: {
+                    curPiece->moveDown();
                     break;
                 }
-                case 1: {
-                    piece->moveRight();
+                case MOVE_LEFT: {
+                    curPiece->moveLeft();
                     break;
                 }
-            }
-            switch (getRand(0, 3)) {
-                case 0: {
-                    piece->wallKickSpin(true);
+                case MOVE_RIGHT: {
+                    curPiece->moveRight();
                     break;
                 }
-                case 1: {
-                    piece->wallKickSpin(false);
+                case HARD_DROP: {
+                    curPiece->hardDrop();
+                    break;
+                }
+                case SPIN_CLOCKWISE: {
+                    curPiece->wallKickSpin(true);
+                    break;
+                }
+                case SPIN_COUNTERCLOCKWISE: {
+                    curPiece->wallKickSpin(false);
+                    break;
+                }
+                case HELD_PIECE: {
                     break;
                 }
             }
             printField();
-            usleep(500000);
         }
-        piece->~Piece();
-        if (numOfClearedLines = clearLines()) {
-            cout << numOfClearedLines << endl;
-        }
+        curPiece->~Piece();
+        checkLines();
     }
+    endGame();
 }
 
 int main() {
     tetris();
     return 0;
 }
+
+//

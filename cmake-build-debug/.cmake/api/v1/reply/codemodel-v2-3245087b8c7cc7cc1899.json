@@ -49,8 +49,8 @@
 	"kind" : "codemodel",
 	"paths" : 
 	{
-		"build" : "/home/zakis/Code/C++/Tetris/cmake-build-debug",
-		"source" : "/home/zakis/Code/C++/Tetris"
+		"build" : "/home/zakis/Code/c++/Tetris/cmake-build-debug",
+		"source" : "/home/zakis/Code/c++/Tetris"
 	},
 	"version" : 
 	{
