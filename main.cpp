@@ -24,7 +24,7 @@ const char S_BlockChar = '&';
 const char T_BlockChar = 'G';
 const char Z_BlockChar = 'W';
 
-const char EMPTY_PIXEL = '-';
+const char EMPTY_PIXEL = '.';
 
 const char CONTROL_MOVE_DOWN = 's';
 const char CONTROL_MOVE_LEFT = 'a';
@@ -39,14 +39,45 @@ const int SCORE_2_LINE = 300;
 const int SCORE_3_LINE = 700;
 const int SCORE_4_LINE = 1500;
 
-/////////////////////////////////
+///////////////////////////////////////////
 
-const double BUMPINESS_WEIGHT = 0;
-const double BLOCKS_IN_RIGHTMOST_LANE_WEIGHT = 0;
-const double BLOCKS_ABOVE_HOLES_WEIGHT = 0;
+#define LENGTH_OF_ARRAY_WITH_RAND_PIECES 7
+
+const int NUM_OF_SWAP_IN_RAND_SORT = 30;
+
+//////////////////////////////////////////////////
+
+const double BUMPINESS_WEIGHT = 0.1;
+const double BLOCKS_ABOVE_HOLES_WEIGHT = 1.9;
+const double MINIMISE_HEIGHT_WEIGHT = 1;
+const double HOLES_UNDER_BLOCKS_WEIGHT = 1;
+const double CLEARING_LINES_WEIGHT = -2.2;
 const double CLEARING_NOT_FOUR_LINES_WEIGHT = 0;
-const double MINIMISE_HEIGHT_WEIGHT = 1.5;
-const double MINIMISE_GLOBAL_HOLES_WEIGHT = 2;
+const double BLOCKS_IN_RIGHTMOST_LANE_WEIGHT = 0;
+
+
+#define NUM_OF_SCORE_PARAMS 6
+
+// константы задачи
+#define GEN_LENGTH NUM_OF_SCORE_PARAMS // длина подлежащей оптимизации битовой строки
+#define GEN_MIN_START_VALUE (-10.0)
+#define GEN_MAX_START_VALUE 10.0
+#define GEN_MUTATION_STEP 0.5
+
+// константы генетического алгоритма
+#define POPULATION_SIZE 1000 // количество индивидуумов в популяции
+#define CROSSOVER_PROBABILITY 90 // вероятность скрещивания
+#define MUTATION_PROBABILITY 50 // вероятность мутации гена индивидуума
+#define MAX_GENERATIONS 500 // максимальное количество поколений
+
+
+#define USE_INIT_GENS 0
+
+double initGens[GEN_LENGTH] {1.0, 2.0, 3.0, 4.0, 5.0, 4.3};
+
+double scoreParams[NUM_OF_SCORE_PARAMS] = {BUMPINESS_WEIGHT, BLOCKS_ABOVE_HOLES_WEIGHT, MINIMISE_HEIGHT_WEIGHT, HOLES_UNDER_BLOCKS_WEIGHT, CLEARING_NOT_FOUR_LINES_WEIGHT, BLOCKS_IN_RIGHTMOST_LANE_WEIGHT};
+
+//double scoreParams[NUM_OF_SCORE_PARAMS] = {0, -0.3, 0.1, 2.2, -1, 1.0};
 
 const string I_BLOCK_NAME = "I_Block";
 const string J_BLOCK_NAME = "J_Block";
@@ -58,6 +89,7 @@ const string Z_BLOCK_NAME = "Z_Block";
 
 const int NUM_OF_ROTATION = 4;
 const int NUM_OF_BLOCK_IN_PIECE = 4;
+const int NUM_OF_PIECES = 7;
 
 const int MOVE_DOWN = 0;
 const int MOVE_LEFT = 1;
@@ -76,6 +108,10 @@ int totalClearedLines;
 int numOfTetris;
 int numOfClearingLines;
 
+int posInArrOfRandPiece;
+
+int arrOfRandPieceTypes[LENGTH_OF_ARRAY_WITH_RAND_PIECES];
+
 void initField() {
     for (int i = 0; i < FIELD_HEIGHT; ++i) {
         for (int j = 0; j < FIELD_WIDTH; ++j) {
@@ -84,15 +120,28 @@ void initField() {
     }
 }
 
-void init() {
-    srand(time(nullptr));
+void fillArrayOfRandPieceTypes() {
+    for (int i = 0; i < LENGTH_OF_ARRAY_WITH_RAND_PIECES; ++i) {
+        arrOfRandPieceTypes[i] = i % NUM_OF_PIECES;
+    }
+}
 
+void initRand() {
+    srand(time(nullptr));
+}
+
+void init() {
+    initRand();
     initField();
 
     score = 0;
     totalClearedLines = 0;
     numOfTetris = 0;
     numOfClearingLines = 0;
+
+    posInArrOfRandPiece = 0;
+
+    fillArrayOfRandPieceTypes();
 }
 
 void printField() {
@@ -101,6 +150,13 @@ void printField() {
             cout << field[i][j] << " ";
         }
         cout << endl;
+    }
+    cout << endl;
+}
+
+void printIntArr(int *arr, int arrSize) {
+    for (int i = 0; i < arrSize; ++i) {
+        cout << arr[i] << ", ";
     }
     cout << endl;
 }
@@ -133,8 +189,12 @@ int min_(int n, ...) {
     return result;
 }
 
-int getRand(int start, int end) {
-    return start + (rand() % end);
+int getRandInt(int start, int end) {
+    return start + (rand() % (end - start));
+}
+
+double getRandDouble(float start, float end, int numOfDecimalPlaces) {
+    return (double)getRandInt((int)(start * pow(10, numOfDecimalPlaces)), (int)(end * pow(10, numOfDecimalPlaces))) / pow(10, numOfDecimalPlaces);
 }
 
 void bias(int &n, int max, int bias) {
@@ -142,7 +202,7 @@ void bias(int &n, int max, int bias) {
 }
 
 class Piece {
-protected:
+public:
     int x1, y1, x2, y2, x3, y3, x4, y4;
     float xCenter, yCenter;
     char pieceChar;
@@ -983,8 +1043,28 @@ public:
     }
 };
 
+void swapInArr(int *arr, int pos1, int pos2) {
+    int temp = arr[pos1];
+    arr[pos1] = arr[pos2];
+    arr[pos2] = temp;
+}
+
+void randSort(int *arr, int arrSize) {
+    int pos1;
+    int pos2;
+    for (int i = 0; i < NUM_OF_SWAP_IN_RAND_SORT; ++i) {
+        pos1 = getRandInt(0, arrSize);
+        pos2 = getRandInt(0, arrSize);
+        swapInArr(arr, pos1, pos2);
+    }
+}
+
 Piece *getRandPiece() {
-    switch (getRand(0, 7)) {
+    posInArrOfRandPiece %= LENGTH_OF_ARRAY_WITH_RAND_PIECES;
+    if (posInArrOfRandPiece == 0) {
+        randSort(arrOfRandPieceTypes, LENGTH_OF_ARRAY_WITH_RAND_PIECES);
+    }
+    switch (arrOfRandPieceTypes[posInArrOfRandPiece++]) {
         case 0: return new I_Block();
         case 1: return new J_Block();
         case 2: return new L_Block();
@@ -1378,6 +1458,16 @@ int numOfClearingLinesCheck() {
     return num;
 }
 
+int clearingNotFourLinesCheck() {
+    int num = numOfClearingLinesCheck();
+    if (num == 0) {
+        return 0;
+    }
+    else if (num != 4) {
+        return 1;
+    }
+}
+
 int getMaxHeight(int minY) {
     return FIELD_HEIGHT - minY;
 }
@@ -1402,7 +1492,7 @@ int numOfGlobalHolesCheck(int startColumn = 0, int endColumn = FIELD_WIDTH) {
     return num;
 }
 
-double getScore(const array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>& arr) {
+double getScore(const array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>& arr, const double *params = scoreParams) {
     double posScore = 0;
 
     int maxX = getMaxX(arr);
@@ -1410,27 +1500,27 @@ double getScore(const array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>& arr) {
     int maxY = getMaxY(arr);
     int minY = getMinY(arr);
 
-    posScore += BUMPINESS_WEIGHT * bumpinessCheck(minX - 1, maxX + 1);
+    posScore += params[0] * bumpinessCheck(minX - 1, maxX + 1);
 
+    posScore += params[1] * numOfBlocksAboveHolesCheck(minX, maxX + 1);
+    posScore += params[2] * getMaxHeight(minY);
+    posScore += params[3] * numOfGlobalHolesCheck(minX, maxX + 1);
+//    posScore += params[4] * numOfClearingLinesCheck();
+
+    posScore += params[4] * clearingNotFourLinesCheck();
     if (maxX == FIELD_WIDTH - 1) {
-        posScore += BLOCKS_IN_RIGHTMOST_LANE_WEIGHT * numOfBlocksInRightmostLaneCheck(arr);
+        posScore += params[5] * numOfBlocksInRightmostLaneCheck(arr);
     }
-
-    posScore += BLOCKS_ABOVE_HOLES_WEIGHT * numOfBlocksAboveHolesCheck(minX, maxX + 1);
-    posScore += CLEARING_NOT_FOUR_LINES_WEIGHT * numOfClearingLinesCheck();
-    posScore += MINIMISE_HEIGHT_WEIGHT * getMaxHeight(minY);
-    posScore += MINIMISE_GLOBAL_HOLES_WEIGHT * numOfGlobalHolesCheck(minX, maxX + 1);
-
     return posScore;
 }
 
-string getBestPosition(const pair<vector<string>, vector<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>>>& posList) {
+string getBestPosition(const pair<vector<string>, vector<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>>>& posList, const double *params) {
     int bestPosIndex = 0;
     double curPosScore, bestPosScore = 10000000;
 
     for (int i = 0; i < posList.first.size(); ++i) {
         setArraysPixels(posList.second[i], '@');
-        curPosScore = getScore(posList.second[i]);
+        curPosScore = getScore(posList.second[i], params);
         setArraysPixels(posList.second[i], EMPTY_PIXEL);
         if (curPosScore < bestPosScore) {
             bestPosScore = curPosScore;
@@ -1442,6 +1532,7 @@ string getBestPosition(const pair<vector<string>, vector<array<pair<int, int>, N
 
 void player() {
     init();
+
     Piece *nextPiece = getRandPiece(), *curPiece;
     char input;
 
@@ -1462,11 +1553,12 @@ void player() {
     endGame();
 }
 
-array<int, 4> AI(bool printGame = true) {
+// {score, totalClearedLines, numOfTetris, numOfClearingLines}
+array<int, 4> AI(bool printGame = true, const double *params = scoreParams) {
+    init();
+
     Piece *nextPiece = getRandPiece(), *curPiece;
     string actionsToBestPosition;
-
-    init();
 
     while (!checkLose()) {
         curPiece = nextPiece;
@@ -1475,11 +1567,10 @@ array<int, 4> AI(bool printGame = true) {
         if (printGame) {
             printField();
         }
-
         pair<vector<string>, vector<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>>>
                 allActionsAndTheirPosition = getAllActionsAndTheirPosition(curPiece);
 
-        actionsToBestPosition = getBestPosition(allActionsAndTheirPosition);
+        actionsToBestPosition = getBestPosition(allActionsAndTheirPosition, params);
 
         executeListOfActions(curPiece, actionsToBestPosition, AI_MOVES_DELAY, printGame);
 
@@ -1496,31 +1587,14 @@ array<int, 4> AI(bool printGame = true) {
 int testMove() {
     init();
     Piece *piece;
-
-    piece = new O_Block();executeListOfActions(piece, "aaaaqqadaddaddaqeeqqqqeeqeeqeeeddadaw");piece->setPixels();printField();delete piece;
-//    piece = new Z_Block();executeListOfActions(piece, "aaaaeew");piece->setPixels();printField();delete piece;
-//    piece = new T_Block();executeListOfActions(piece, "aaaw");piece->setPixels();printField();delete piece;
+    piece = new I_Block();executeListOfActions(piece, "qw");piece->setPixels();printField();delete piece;
 }
 
 void test() {
     init();
-//    for (int i = 0; i < FIELD_HEIGHT; ++i) {
-//        field[FIELD_HEIGHT - 1 - i][FIELD_WIDTH - 1] = '@';
-//    }
-//    field[FIELD_HEIGHT - 1][FIELD_WIDTH - 1] = EMPTY_PIXEL;
-//
-//    for (int i = 0; i < FIELD_HEIGHT; ++i) {
-//        field[FIELD_HEIGHT - 1 - i][FIELD_WIDTH - 3] = '@';
-//    }
-//    field[FIELD_HEIGHT - 1][FIELD_WIDTH - 3] = EMPTY_PIXEL;
 
-    array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE> arr =
-            {make_pair(0, 14), make_pair(1, 14), make_pair(2, 14), make_pair(0, 12)};
-    setArraysPixels(arr, '@');
-
-    printField();
-    cout << numOfGlobalHolesCheck(0, 3) << endl;
-//    cout << getColumnHeight(FIELD_WIDTH - 2) << endl;
+//    Piece *piece = getRandPiece();
+    cout << getRandDouble(2.5, 3.5, 1);
 }
 
 void testAI(int numOfGame) {
@@ -1541,11 +1615,203 @@ void testAI(int numOfGame) {
     cout << "avgTetrisRate: " << avgTetrisRate << "%" << endl;
 }
 
+bool getTrueWithProbability(int probability) {
+    return getRandInt(0, 100) < probability;
+}
+
+class Species {
+public:
+    double *gens;
+
+    Species() {
+        gens = new double[GEN_LENGTH];
+        for (int i = 0; i < GEN_LENGTH; ++i) {
+            if (USE_INIT_GENS) {
+                gens[i] = initGens[i];
+            }
+            else {
+                gens[i] = getRandDouble(GEN_MIN_START_VALUE, GEN_MAX_START_VALUE, 1);
+            }
+        }
+    }
+    Species(const double gen[GEN_LENGTH]) {
+        gens = new double[GEN_LENGTH];
+        for (int i = 0; i < GEN_LENGTH; ++i) {
+            gens[i] = gen[i];
+        }
+    }
+    void printGens() const {
+        for (int i = 0; i < GEN_LENGTH; ++i) {
+            cout << gens[i] << ", ";
+        }
+        cout << endl;
+    }
+};
+
+Species* getClone(const Species& species) {
+    return new Species(species.gens);
+}
+
+int fitness(Species species) {
+    array<int, 4> result = AI(false, species.gens);
+    return (int)(result[0] * ((double)result[2] / result[3]));
+}
+
+void getPopulationFitness(pair<Species, int> population[POPULATION_SIZE]) {
+    for (int i = 0; i < POPULATION_SIZE; ++i) {
+        population[i].second = fitness(population[i].first);
+    }
+}
+
+void fillPopulation(pair<Species, int> population[POPULATION_SIZE]) {
+    for (int i = 0; i < POPULATION_SIZE; ++i) {
+        population[i].first = Species();
+    }
+    getPopulationFitness(population);
+}
+
+bool equals(int a, int b, int c) {
+    return a == b && a == c;
+}
+
+int getBestSpecies(const pair<Species, int> population[POPULATION_SIZE], int s1, int s2, int s3) {
+    if (population[s1].second >= population[s2].second && population[s1].second >= population[s3].second) {
+        return s1;
+    }
+    if (population[s2].second >= population[s1].second && population[s2].second >= population[s3].second) {
+        return s2;
+    }
+    return s3;
+}
+
+void selectionPopulation(pair<Species, int> population[POPULATION_SIZE]) {
+    Species selected[POPULATION_SIZE];
+    Species *clone;
+    int s1, s2, s3;
+    for (int i = 0; i < POPULATION_SIZE; ++i) {
+        do {
+            s1 = getRandInt(0, POPULATION_SIZE);
+            s2 = getRandInt(0, POPULATION_SIZE);
+            s3 = getRandInt(0, POPULATION_SIZE);
+        } while (equals(s1, s2, s2));
+        clone = getClone(population[getBestSpecies(population, s1, s2, s3)].first);
+        selected[i] = *clone;
+    }
+    for (int i = 0; i < POPULATION_SIZE; ++i) {
+        population[i].first = selected[i];
+    }
+}
+
+void crossover(Species &s1, Species &s2) {
+    if (!getTrueWithProbability(CROSSOVER_PROBABILITY)) return;
+    int genCatPos = getRandInt(0, GEN_LENGTH);
+    int temp;
+    for (int i = genCatPos; i < GEN_LENGTH; ++i) {
+        temp = s1.gens[i];
+        s1.gens[i] = s2.gens[i];
+        s2.gens[i] = temp;
+    }
+}
+
+void crossoverPopulation(pair<Species, int> population[POPULATION_SIZE]) {
+    for (int i = 0; i < POPULATION_SIZE / 2; ++i) {
+        crossover(population[2 * i].first, population[2 * i + 1].first);
+    }
+}
+
+void genMutation(pair<Species, int> population[POPULATION_SIZE], int arrPos, int genPos) {
+    if (getRandInt(0, 2)) {
+        population[arrPos].first.gens[genPos] += GEN_MUTATION_STEP;
+    }
+    else {
+        population[arrPos].first.gens[genPos] -= GEN_MUTATION_STEP;
+    }
+}
+
+void mutationPopulation(pair<Species, int> population[POPULATION_SIZE]) {
+    for (int i = 0; i < POPULATION_SIZE; ++i) {
+        for (int j = 0; j < GEN_LENGTH; ++j) {
+            if (getTrueWithProbability(MUTATION_PROBABILITY)) {
+                genMutation(population, i, j);
+            }
+        }
+    }
+}
+
+float getAvgPopulationFitness(const pair<Species, int> population[POPULATION_SIZE]) {
+    int avgFitness = 0;
+    for (int i = 0; i < POPULATION_SIZE; ++i) {
+        avgFitness += population[i].second;
+    }
+    return (float)avgFitness / POPULATION_SIZE;
+}
+
+int getBestSpeciesPos(pair<Species, int> population[POPULATION_SIZE]) {
+    int maxFitness = 0, posOfBestSpecies;
+    for (int i = 0; i < POPULATION_SIZE; ++i) {
+        if (population[i].second > maxFitness) {
+            maxFitness = population[i].second;
+            posOfBestSpecies = i;
+        }
+    }
+    return posOfBestSpecies;
+}
+
+void swapInArr(pair<Species, int> arr[POPULATION_SIZE], int pos1, int pos2) {
+    pair<Species, int> temp = arr[pos1];
+    arr[pos1] = arr[pos2];
+    arr[pos2] = temp;
+}
+
+void sortArrByFitness(pair<Species, int> population[POPULATION_SIZE]) {
+    int posOfMax;
+    for (int i = 0; i < POPULATION_SIZE; ++i) {
+        posOfMax = i;
+        for (int j = i; j < POPULATION_SIZE; ++j) {
+            if (population[j].second > population[posOfMax].second) {
+                posOfMax = j;
+            }
+        }
+        swapInArr(population, i, posOfMax);
+    }
+}
+
+void trainAI() {
+    initRand();
+    pair<Species, int> population[POPULATION_SIZE];
+    int bestSpeciesPos;
+
+    fillPopulation(population);
+
+    for (int i = 0; i < MAX_GENERATIONS; ++i) {
+        selectionPopulation(population);
+        crossoverPopulation(population);
+        mutationPopulation(population);
+
+        getPopulationFitness(population);
+
+        bestSpeciesPos = getBestSpeciesPos(population);
+
+        cout << "Generation: " << i + 1 << endl;
+
+        cout << "Best fitness: " << population[bestSpeciesPos].second << endl;
+        cout << "Avg fitness: " << getAvgPopulationFitness(population) << endl;
+
+        cout << "Gens: " << population[bestSpeciesPos].first.gens[i];
+
+        for (int i = 1; i < GEN_LENGTH; ++i) {
+            cout << ", " << population[bestSpeciesPos].first.gens[i];
+        }
+        cout << endl << endl;
+    }
+}
+
 int main() {
 //    player();
-    testAI(10);
+//    testAI(10);
 //    AI();
 //    testMove();
 //    test();
+    trainAI();
     return 0;
 }
