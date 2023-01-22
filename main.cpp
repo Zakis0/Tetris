@@ -1073,6 +1073,8 @@ Piece *getRandPiece() {
         case 5: return new T_Block();
         case 6: return new Z_Block();
     }
+    cerr << "getRandPiece" << endl;
+    return new I_Block();
 }
 
 void downgradeMatrix(int row) {
@@ -1278,6 +1280,10 @@ Piece *createPiece(Piece *piece) {
     else if (smpStr(piece->pieceName, Z_BLOCK_NAME)) {
         return new Z_Block();
     }
+    else {
+        cerr << "createPiece" << endl;
+        return new I_Block();
+    }
 }
 
 int minPosX(const array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE> &arr, int startPos) {
@@ -1466,6 +1472,10 @@ int clearingNotFourLinesCheck() {
     else if (num != 4) {
         return 1;
     }
+    else {
+        cerr << "clearingNotFourLinesCheck" << endl;
+        return -1;
+    }
 }
 
 int getMaxHeight(int minY) {
@@ -1584,7 +1594,7 @@ array<int, 4> AI(bool printGame = true, const double *params = scoreParams) {
     return {score, totalClearedLines, numOfTetris, numOfClearingLines};
 }
 
-int testMove() {
+void testMove() {
     init();
     Piece *piece;
     piece = new I_Block();executeListOfActions(piece, "qw");piece->setPixels();printField();delete piece;
