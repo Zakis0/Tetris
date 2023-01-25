@@ -7,7 +7,8 @@
 #include <vector>
 #include <set>
 #include <valarray>
-#include <any>
+#include <chrono>
+#include <thread>
 
 using namespace std;
 
@@ -51,33 +52,32 @@ const double BUMPINESS_WEIGHT = 0.1;
 const double BLOCKS_ABOVE_HOLES_WEIGHT = 1.9;
 const double MINIMISE_HEIGHT_WEIGHT = 1;
 const double HOLES_UNDER_BLOCKS_WEIGHT = 1;
-const double CLEARING_LINES_WEIGHT = -2.2;
 const double CLEARING_NOT_FOUR_LINES_WEIGHT = 0;
 const double BLOCKS_IN_RIGHTMOST_LANE_WEIGHT = 0;
+const double TETRIS_WEIGHT = 0;
+const double NUM_OF_PILLARS_WEIGHT = 0;
+//const double CLEARING_LINES_WEIGHT = -2.2;
 
-
-#define NUM_OF_SCORE_PARAMS 6
+#define NUM_OF_SCORE_PARAMS 8
 
 // константы задачи
 #define GEN_LENGTH NUM_OF_SCORE_PARAMS // длина подлежащей оптимизации битовой строки
-#define GEN_MIN_START_VALUE (-10.0)
+#define GEN_MIN_START_VALUE 0
 #define GEN_MAX_START_VALUE 10.0
 #define GEN_MUTATION_STEP 0.5
+#define TETRIS_COOLNESS 5
 
 // константы генетического алгоритма
-#define POPULATION_SIZE 1000 // количество индивидуумов в популяции
+#define POPULATION_SIZE 100 // количество индивидуумов в популяции
 #define CROSSOVER_PROBABILITY 90 // вероятность скрещивания
-#define MUTATION_PROBABILITY 50 // вероятность мутации гена индивидуума
+#define MUTATION_PROBABILITY 15 // вероятность мутации гена индивидуума
 #define MAX_GENERATIONS 500 // максимальное количество поколений
 
+#define NUM_OF_THREADS 10
 
-#define USE_INIT_GENS 0
+double scoreParams[NUM_OF_SCORE_PARAMS] = {BUMPINESS_WEIGHT, BLOCKS_ABOVE_HOLES_WEIGHT, MINIMISE_HEIGHT_WEIGHT, HOLES_UNDER_BLOCKS_WEIGHT, CLEARING_NOT_FOUR_LINES_WEIGHT, BLOCKS_IN_RIGHTMOST_LANE_WEIGHT, TETRIS_WEIGHT, NUM_OF_PILLARS_WEIGHT};
 
-double initGens[GEN_LENGTH] {1.0, 2.0, 3.0, 4.0, 5.0, 4.3};
-
-double scoreParams[NUM_OF_SCORE_PARAMS] = {BUMPINESS_WEIGHT, BLOCKS_ABOVE_HOLES_WEIGHT, MINIMISE_HEIGHT_WEIGHT, HOLES_UNDER_BLOCKS_WEIGHT, CLEARING_NOT_FOUR_LINES_WEIGHT, BLOCKS_IN_RIGHTMOST_LANE_WEIGHT};
-
-//double scoreParams[NUM_OF_SCORE_PARAMS] = {0, -0.3, 0.1, 2.2, -1, 1.0};
+//double scoreParams[NUM_OF_SCORE_PARAMS] = {0.5, -1, 7, 6, 0.5, -3, 1, 1};
 
 const string I_BLOCK_NAME = "I_Block";
 const string J_BLOCK_NAME = "J_Block";
@@ -99,20 +99,13 @@ const int SPIN_CLOCKWISE = 4;
 const int SPIN_COUNTERCLOCKWISE = 5;
 const int HELD_PIECE = 6;
 
-char field[FIELD_HEIGHT][FIELD_WIDTH];
-
 const int FIELD_MIDDLE = FIELD_WIDTH / 2 - 1;
-
-int score;
-int totalClearedLines;
-int numOfTetris;
-int numOfClearingLines;
 
 int posInArrOfRandPiece;
 
 int arrOfRandPieceTypes[LENGTH_OF_ARRAY_WITH_RAND_PIECES];
 
-void initField() {
+void initField(char field[FIELD_HEIGHT][FIELD_WIDTH]) {
     for (int i = 0; i < FIELD_HEIGHT; ++i) {
         for (int j = 0; j < FIELD_WIDTH; ++j) {
             field[i][j] = EMPTY_PIXEL;
@@ -130,9 +123,9 @@ void initRand() {
     srand(time(nullptr));
 }
 
-void init() {
+void init(char field[FIELD_HEIGHT][FIELD_WIDTH], int& score, int& totalClearedLines, int& numOfTetris, int& numOfClearingLines) {
     initRand();
-    initField();
+    initField(field);
 
     score = 0;
     totalClearedLines = 0;
@@ -144,7 +137,7 @@ void init() {
     fillArrayOfRandPieceTypes();
 }
 
-void printField() {
+void printField(char field[FIELD_HEIGHT][FIELD_WIDTH]) {
     for (int i = 0; i < FIELD_HEIGHT; ++i) {
         for (int j = 0; j < FIELD_WIDTH; ++j) {
             cout << field[i][j] << " ";
@@ -202,7 +195,7 @@ void bias(int &n, int max, int bias) {
 }
 
 class Piece {
-public:
+protected:
     int x1, y1, x2, y2, x3, y3, x4, y4;
     float xCenter, yCenter;
     char pieceChar;
@@ -237,7 +230,7 @@ public:
         }
         return true;
     }
-    bool isPossiblePosition(int dX = 0, int dY = 0) const {
+    bool isPossiblePosition(char field[FIELD_HEIGHT][FIELD_WIDTH], int dX = 0, int dY = 0) const {
         return isPixelsInField(dX, dY) &&
                field[y1 + dY][x1 + dX] == EMPTY_PIXEL &&
                field[y2 + dY][x2 + dX] == EMPTY_PIXEL &&
@@ -257,48 +250,48 @@ public:
         xCenter += dX;
         yCenter += dY;
     }
-    bool canMoveDown() {
-        clearPixels();
-        if (isPossiblePosition(0, 1)) {
-            setPixels();
+    bool canMoveDown(char field[FIELD_HEIGHT][FIELD_WIDTH]) {
+        clearPixels(field);
+        if (isPossiblePosition(field, 0, 1)) {
+            setPixels(field);
             return true;
         }
-        setPixels();
+        setPixels(field);
         return false;
     }
-    void moveDown() {
-        clearPixels();
-        if (isPossiblePosition(0, 1)) {
+    void moveDown(char field[FIELD_HEIGHT][FIELD_WIDTH]) {
+        clearPixels(field);
+        if (isPossiblePosition(field, 0, 1)) {
             cordBias(0, 1);
         }
-        setPixels();
+        setPixels(field);
     }
-    void hardDrop() {
-        while (canMoveDown()) {
-            moveDown();
+    void hardDrop(char field[FIELD_HEIGHT][FIELD_WIDTH]) {
+        while (canMoveDown(field)) {
+            moveDown(field);
         }
     }
-    void moveRight() {
-        clearPixels();
-        if (isPossiblePosition(1, 0)) {
+    void moveRight(char field[FIELD_HEIGHT][FIELD_WIDTH]) {
+        clearPixels(field);
+        if (isPossiblePosition(field, 1, 0)) {
             cordBias(1, 0);
         }
-        setPixels();
+        setPixels(field);
     }
-    void moveLeft() {
-        clearPixels();
-        if (isPossiblePosition(-1, 0)) {
+    void moveLeft(char field[FIELD_HEIGHT][FIELD_WIDTH]) {
+        clearPixels(field);
+        if (isPossiblePosition(field, -1, 0)) {
             cordBias(-1, 0);
         }
-        setPixels();
+        setPixels(field);
     }
-    void clearPixels() const {
+    void clearPixels(char field[FIELD_HEIGHT][FIELD_WIDTH]) const {
         field[y1][x1] = EMPTY_PIXEL;
         field[y2][x2] = EMPTY_PIXEL;
         field[y3][x3] = EMPTY_PIXEL;
         field[y4][x4] = EMPTY_PIXEL;
     }
-    void setPixels() const {
+    void setPixels(char field[FIELD_HEIGHT][FIELD_WIDTH]) {
         field[y1][x1] = pieceChar;
         field[y2][x2] = pieceChar;
         field[y3][x3] = pieceChar;
@@ -316,8 +309,8 @@ public:
     void printCenter() {
         cout << xCenter << " " << yCenter << endl;
     }
-    void JLTSZ_Test(bool clockwise);
-    void I_Test(bool clockwise);
+    void JLTSZ_Test(char field[FIELD_HEIGHT][FIELD_WIDTH], bool clockwise);
+    void I_Test(char field[FIELD_HEIGHT][FIELD_WIDTH], bool clockwise);
 
     virtual void spin(bool clockwise) {
         if (clockwise) {
@@ -327,80 +320,80 @@ public:
             bias(rotNum, NUM_OF_ROTATION, -1);
         }
     }
-    virtual void wallKickSpin(bool clockwise) {}
+    virtual void wallKickSpin(char field[FIELD_HEIGHT][FIELD_WIDTH], bool clockwise) {}
 };
 
-void Piece::JLTSZ_Test(bool clockwise) {
-    if(isPossiblePosition()) return;
+void Piece::JLTSZ_Test(char field[FIELD_HEIGHT][FIELD_WIDTH], bool clockwise) {
+    if(isPossiblePosition(field)) return;
     if (clockwise) {
         if (rotNum == 0) {
-            if (isPossiblePosition(-1, 0)) {
+            if (isPossiblePosition(field, -1, 0)) {
                 cordBias(-1, 0);
                 return;
             }
-            if (isPossiblePosition(-1, -1)) {
+            if (isPossiblePosition(field, -1, -1)) {
                 cordBias(-1, -1);
                 return;
             }
-            if (isPossiblePosition(0, 2)) {
+            if (isPossiblePosition(field, 0, 2)) {
                 cordBias(0, 2);
                 return;
             }
-            if (isPossiblePosition(-1, 2)) {
+            if (isPossiblePosition(field, -1, 2)) {
                 cordBias(-1, 2);
                 return;
             }
         }
         else if (rotNum == 1) {
-            if (isPossiblePosition(-1, 0)) {
+            if (isPossiblePosition(field, -1, 0)) {
                 cordBias(-1, 0);
                 return;
             }
-            if (isPossiblePosition(-1, 1)) {
+            if (isPossiblePosition(field, -1, 1)) {
                 cordBias(-1, 1);
                 return;
             }
-            if (isPossiblePosition(0, -2)) {
+            if (isPossiblePosition(field, 0, -2)) {
                 cordBias(0, -2);
                 return;
             }
-            if (isPossiblePosition(-1, -2)) {
+            if (isPossiblePosition(field, -1, -2)) {
                 cordBias(-1, -2);
                 return;
             }
         }
         else if (rotNum == 2) {
-            if (isPossiblePosition(1, 0)) {
+            if (isPossiblePosition(field, 1, 0)) {
                 cordBias(1, 0);
                 return;
             }
-            if (isPossiblePosition(1, -1)) {
+            if (isPossiblePosition(field, 1, -1)) {
                 cordBias(1, -1);
                 return;
             }
-            if (isPossiblePosition(0, 2)) {
+            if (isPossiblePosition(field, 0, 2)) {
                 cordBias(0, 2);
                 return;
             }
-            if (isPossiblePosition(1, 2)) {
+            if (isPossiblePosition(field, 1, 2)) {
                 cordBias(1, 2);
                 return;
             }
         }
         else if (rotNum == 3) {
-            if (isPossiblePosition(1, 0)) {
+            if (isPossiblePosition(field, 1, 0)) {
                 cordBias(1, 0);
                 return;
             }
-            if (isPossiblePosition(1, 1)) {
+            if (isPossiblePosition(field, 1, 1)) {
                 cordBias(1, 1);
                 return;
             }
-            if (isPossiblePosition(0, -2)) {
+            if (isPossiblePosition(field, 0, -2)) {
                 cordBias(0, -2);
                 return;
             }
-            if (isPossiblePosition(1, -2)) {
+            if (isPossiblePosition(field, 1, -2)) {
                 cordBias(1, -2);
                 return;
             }
@@ -408,73 +401,73 @@ void Piece::JLTSZ_Test(bool clockwise) {
     }
     else {
         if (rotNum == 0) {
-            if (isPossiblePosition(1, 0)) {
+            if (isPossiblePosition(field, 1, 0)) {
                 cordBias(1, 0);
                 return;
             }
-            if (isPossiblePosition(1, -1)) {
+            if (isPossiblePosition(field, 1, -1)) {
                 cordBias(1, -1);
                 return;
             }
-            if (isPossiblePosition(0, 2)) {
+            if (isPossiblePosition(field, 0, 2)) {
                 cordBias(0, 2);
                 return;
             }
-            if (isPossiblePosition(1, 2)) {
+            if (isPossiblePosition(field, 1, 2)) {
                 cordBias(1, 2);
                 return;
             }
         }
         else if (rotNum == 1) {
-            if (isPossiblePosition(-1, 0)) {
+            if (isPossiblePosition(field, -1, 0)) {
                 cordBias(-1, 0);
                 return;
             }
-            if (isPossiblePosition(-1, 1)) {
+            if (isPossiblePosition(field, -1, 1)) {
                 cordBias(-1, 1);
                 return;
             }
-            if (isPossiblePosition(0, -2)) {
+            if (isPossiblePosition(field, 0, -2)) {
                 cordBias(0, -2);
                 return;
             }
-            if (isPossiblePosition(-1, -2)) {
+            if (isPossiblePosition(field, -1, -2)) {
                 cordBias(-1, -2);
                 return;
             }
         }
         else if (rotNum == 2) {
-            if (isPossiblePosition(-1, 0)) {
+            if (isPossiblePosition(field, -1, 0)) {
                 cordBias(-1, 0);
                 return;
             }
-            if (isPossiblePosition(-1, -1)) {
+            if (isPossiblePosition(field, -1, -1)) {
                 cordBias(-1, -1);
                 return;
             }
-            if (isPossiblePosition(0, 2)) {
+            if (isPossiblePosition(field, 0, 2)) {
                 cordBias(0, 2);
                 return;
             }
-            if (isPossiblePosition(-1, 2)) {
+            if (isPossiblePosition(field, -1, 2)) {
                 cordBias(-1, 2);
                 return;
             }
         }
         else if (rotNum == 3) {
-            if (isPossiblePosition(1, 0)) {
+            if (isPossiblePosition(field, 1, 0)) {
                 cordBias(1, 0);
                 return;
             }
-            if (isPossiblePosition(1, 1)) {
+            if (isPossiblePosition(field, 1, 1)) {
                 cordBias(1, 1);
                 return;
             }
-            if (isPossiblePosition(0, -2)) {
+            if (isPossiblePosition(field, 0, -2)) {
                 cordBias(0, -2);
                 return;
             }
-            if (isPossiblePosition(1, -2)) {
+            if (isPossiblePosition(field, 1, -2)) {
                 cordBias(1, -2);
                 return;
             }
@@ -482,77 +475,77 @@ void Piece::JLTSZ_Test(bool clockwise) {
     }
 }
 
-void Piece::I_Test(bool clockwise) {
-    if(isPossiblePosition()) return;
+void Piece::I_Test(char field[FIELD_HEIGHT][FIELD_WIDTH], bool clockwise) {
+    if(isPossiblePosition(field)) return;
     if (clockwise) {
         if (rotNum == 0) {
-            if (isPossiblePosition(1, 0)) {
+            if (isPossiblePosition(field, 1, 0)) {
                 cordBias(1, 0);
                 return;
             }
-            if (isPossiblePosition(-2, 0)) {
+            if (isPossiblePosition(field, -2, 0)) {
                 cordBias(-2, 0);
                 return;
             }
-            if (isPossiblePosition(1, -2)) {
+            if (isPossiblePosition(field, 1, -2)) {
                 cordBias(1, -2);
                 return;
             }
-            if (isPossiblePosition(-2, 1)) {
+            if (isPossiblePosition(field, -2, 1)) {
                 cordBias(-2, 1);
                 return;
             }
         }
         else if (rotNum == 1) {
-            if (isPossiblePosition(-2, 0)) {
+            if (isPossiblePosition(field, -2, 0)) {
                 cordBias(-2, 0);
                 return;
             }
-            if (isPossiblePosition(1, 0)) {
+            if (isPossiblePosition(field, 1, 0)) {
                 cordBias(1, 0);
                 return;
             }
-            if (isPossiblePosition(-2, -1)) {
+            if (isPossiblePosition(field, -2, -1)) {
                 cordBias(-2, -1);
                 return;
             }
-            if (isPossiblePosition(1, 2)) {
+            if (isPossiblePosition(field, 1, 2)) {
                 cordBias(1, 2);
                 return;
             }
         }
         else if (rotNum == 2) {
-            if (isPossiblePosition(-1, 0)) {
+            if (isPossiblePosition(field, -1, 0)) {
                 cordBias(-1, 0);
                 return;
             }
-            if (isPossiblePosition(2, 0)) {
+            if (isPossiblePosition(field, 2, 0)) {
                 cordBias(2, 0);
                 return;
             }
-            if (isPossiblePosition(-1, 2)) {
+            if (isPossiblePosition(field, -1, 2)) {
                 cordBias(-1, 2);
                 return;
             }
-            if (isPossiblePosition(2, -1)) {
+            if (isPossiblePosition(field, 2, -1)) {
                 cordBias(2, -1);
                 return;
             }
         }
         else if (rotNum == 3) {
-            if (isPossiblePosition(2, 0)) {
+            if (isPossiblePosition(field, 2, 0)) {
                 cordBias(2, 0);
                 return;
             }
-            if (isPossiblePosition(-1, 0)) {
+            if (isPossiblePosition(field, -1, 0)) {
                 cordBias(-1, 0);
                 return;
             }
-            if (isPossiblePosition(2, 1)) {
+            if (isPossiblePosition(field, 2, 1)) {
                 cordBias(2, 1);
                 return;
             }
-            if (isPossiblePosition(-1, -1)) {
+            if (isPossiblePosition(field, -1, -1)) {
                 cordBias(-1, -1);
                 return;
             }
@@ -560,73 +553,73 @@ void Piece::I_Test(bool clockwise) {
     }
     else {
         if (rotNum == 0) {
-            if (isPossiblePosition(2, 0)) {
+            if (isPossiblePosition(field, 2, 0)) {
                 cordBias(2, 0);
                 return;
             }
-            if (isPossiblePosition(-1, 0)) {
+            if (isPossiblePosition(field, -1, 0)) {
                 cordBias(-1, 0);
                 return;
             }
-            if (isPossiblePosition(2, 1)) {
+            if (isPossiblePosition(field, 2, 1)) {
                 cordBias(2, 1);
                 return;
             }
-            if (isPossiblePosition(-1, -2)) {
+            if (isPossiblePosition(field, -1, -2)) {
                 cordBias(-1, -2);
                 return;
             }
         }
         else if (rotNum == 1) {
-            if (isPossiblePosition(-2, 0)) {
+            if (isPossiblePosition(field, -2, 0)) {
                 cordBias(-2, 0);
                 return;
             }
-            if (isPossiblePosition(1, 0)) {
+            if (isPossiblePosition(field, 1, 0)) {
                 cordBias(1, 0);
                 return;
             }
-            if (isPossiblePosition(-2, 1)) {
+            if (isPossiblePosition(field, -2, 1)) {
                 cordBias(-2, 1);
                 return;
             }
-            if (isPossiblePosition(1, -1)) {
+            if (isPossiblePosition(field, 1, -1)) {
                 cordBias(1, -1);
                 return;
             }
         }
         else if (rotNum == 2) {
-            if (isPossiblePosition(-2, 0)) {
+            if (isPossiblePosition(field, -2, 0)) {
                 cordBias(-2, 0);
                 return;
             }
-            if (isPossiblePosition(1, 0)) {
+            if (isPossiblePosition(field, 1, 0)) {
                 cordBias(1, 0);
                 return;
             }
-            if (isPossiblePosition(-2, -1)) {
+            if (isPossiblePosition(field, -2, -1)) {
                 cordBias(-2, -1);
                 return;
             }
-            if (isPossiblePosition(1, 2)) {
+            if (isPossiblePosition(field, 1, 2)) {
                 cordBias(1, 2);
                 return;
             }
         }
         else if (rotNum == 3) {
-            if (isPossiblePosition(-1, 0)) {
+            if (isPossiblePosition(field, -1, 0)) {
                 cordBias(-1, 0);
                 return;
             }
-            if (isPossiblePosition(2, 0)) {
+            if (isPossiblePosition(field, 2, 0)) {
                 cordBias(2, 0);
                 return;
             }
-            if (isPossiblePosition(-1, 2)) {
+            if (isPossiblePosition(field, -1, 2)) {
                 cordBias(-1, 2);
                 return;
             }
-            if (isPossiblePosition(2, -1)) {
+            if (isPossiblePosition(field, 2, -1)) {
                 cordBias(2, -1);
                 return;
             }
@@ -697,11 +690,11 @@ public:
             y4 = yCenter - 1.5f;
         }
     }
-    void wallKickSpin(bool clockwise) {
-        clearPixels();
+    void wallKickSpin(char field[FIELD_HEIGHT][FIELD_WIDTH], bool clockwise) {
+        clearPixels(field);
         spin(clockwise);
-        I_Test(clockwise);
-        setPixels();
+        I_Test(field, clockwise);
+        setPixels(field);
     }
 };
 
@@ -760,11 +753,11 @@ public:
             y4 = yCenter - 1;
         }
     }
-    void wallKickSpin(bool clockwise) {
-        clearPixels();
+    void wallKickSpin(char field[FIELD_HEIGHT][FIELD_WIDTH], bool clockwise) {
+        clearPixels(field);
         spin(clockwise);
-        JLTSZ_Test(clockwise);
-        setPixels();
+        JLTSZ_Test(field, clockwise);
+        setPixels(field);
     }
 };
 
@@ -823,11 +816,11 @@ public:
             y4 = yCenter - 1;
         }
     }
-    void wallKickSpin(bool clockwise) {
-        clearPixels();
+    void wallKickSpin(char field[FIELD_HEIGHT][FIELD_WIDTH], bool clockwise) {
+        clearPixels(field);
         spin(clockwise);
-        JLTSZ_Test(clockwise);
-        setPixels();
+        JLTSZ_Test(field, clockwise);
+        setPixels(field);
     }
 };
 
@@ -909,11 +902,11 @@ public:
             y4 = yCenter + 1;
         }
     }
-    void wallKickSpin(bool clockwise) {
-        clearPixels();
+    void wallKickSpin(char field[FIELD_HEIGHT][FIELD_WIDTH], bool clockwise) {
+        clearPixels(field);
         spin(clockwise);
-        JLTSZ_Test(clockwise);
-        setPixels();
+        JLTSZ_Test(field, clockwise);
+        setPixels(field);
     }
 };
 
@@ -972,11 +965,11 @@ public:
             y4 = yCenter - 1;
         }
     }
-    void wallKickSpin(bool clockwise) {
-        clearPixels();
+    void wallKickSpin(char field[FIELD_HEIGHT][FIELD_WIDTH], bool clockwise) {
+        clearPixels(field);
         spin(clockwise);
-        JLTSZ_Test(clockwise);
-        setPixels();
+        JLTSZ_Test(field, clockwise);
+        setPixels(field);
     }
 };
 
@@ -1035,11 +1028,11 @@ public:
             y4 = yCenter - 1;
         }
     }
-    void wallKickSpin(bool clockwise) {
-        clearPixels();
+    void wallKickSpin(char field[FIELD_HEIGHT][FIELD_WIDTH], bool clockwise) {
+        clearPixels(field);
         spin(clockwise);
-        JLTSZ_Test(clockwise);
-        setPixels();
+        JLTSZ_Test(field, clockwise);
+        setPixels(field);
     }
 };
 
@@ -1073,11 +1066,9 @@ Piece *getRandPiece() {
         case 5: return new T_Block();
         case 6: return new Z_Block();
     }
-    cerr << "getRandPiece" << endl;
-    return new I_Block();
 }
 
-void downgradeMatrix(int row) {
+void downgradeMatrix(char field[FIELD_HEIGHT][FIELD_WIDTH], int row) {
     for (int i = 0; i < FIELD_WIDTH; ++i) {
         field[row][i] = EMPTY_PIXEL;
     }
@@ -1089,7 +1080,7 @@ void downgradeMatrix(int row) {
     }
 }
 
-int clearLines() {
+int clearLines(char field[FIELD_HEIGHT][FIELD_WIDTH], int& numOfClearingLines) {
     int numOfClearLines = 0;
     bool filled;
     for (int i = 0; i < FIELD_HEIGHT; ++i) {
@@ -1101,7 +1092,7 @@ int clearLines() {
             }
         }
         if (filled) {
-            downgradeMatrix(i);
+            downgradeMatrix(field, i);
             ++numOfClearLines;
         }
     }
@@ -1138,30 +1129,30 @@ int getAction(char c) {
     return '0';
 }
 
-void doAction(Piece *piece, int action) {
+void doAction(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *piece, int action) {
     switch (action) {
         case MOVE_DOWN: {
-            piece->moveDown();
+            piece->moveDown(field);
             break;
         }
         case MOVE_LEFT: {
-            piece->moveLeft();
+            piece->moveLeft(field);
             break;
         }
         case MOVE_RIGHT: {
-            piece->moveRight();
+            piece->moveRight(field);
             break;
         }
         case HARD_DROP: {
-            piece->hardDrop();
+            piece->hardDrop(field);
             break;
         }
         case SPIN_CLOCKWISE: {
-            piece->wallKickSpin(true);
+            piece->wallKickSpin(field, true);
             break;
         }
         case SPIN_COUNTERCLOCKWISE: {
-            piece->wallKickSpin(false);
+            piece->wallKickSpin(field, false);
             break;
         }
         case HELD_PIECE: {
@@ -1170,8 +1161,8 @@ void doAction(Piece *piece, int action) {
     }
 }
 
-void checkLines() {
-    int numOfClearedLines = clearLines();
+void checkLines(char field[FIELD_HEIGHT][FIELD_WIDTH], int& score, int& totalClearedLines, int& numOfTetris, int& numOfClearingLines) {
+    int numOfClearedLines = clearLines(field, numOfClearingLines);
     totalClearedLines += numOfClearedLines;
     switch (numOfClearedLines) {
         case 1: {
@@ -1194,7 +1185,7 @@ void checkLines() {
     }
 }
 
-bool checkLose() {
+bool checkLose(char field[FIELD_HEIGHT][FIELD_WIDTH]) {
     for (int i = 0; i < FIELD_WIDTH; ++i) {
         if (field[0][i] != EMPTY_PIXEL) return true;
     }
@@ -1209,7 +1200,7 @@ float getPercent(int dividend, int divisor, int precision = 2) {
     return floor((float)dividend / divisor * 100 * pow(10, precision)) / pow(10, precision);
 }
 
-void endGame() {
+void endGame(int score, int totalClearedLines, int numOfTetris, int numOfClearingLines) {
     cout << "Score: " << score << endl;
     cout << "Num of cleared lines: " << totalClearedLines << endl;
     cout << "Tetris rate: " << getPercent(numOfTetris, numOfClearingLines) << "%" << endl;
@@ -1233,11 +1224,11 @@ list<string> getInputList(bool notO_Block) {
     return result;
 }
 
-void executeListOfActions(Piece *piece, const string& actionsList, int delay = 0, bool pField = false) {
+void executeListOfActions(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *piece, const string& actionsList, int delay = 0, bool pField = false) {
     for (char action: actionsList) {
-        doAction(piece, getAction(action));
+        doAction(field, piece, getAction(action));
         if (pField) {
-            printField();
+            printField(field);
         }
         usleep(delay);
     }
@@ -1279,10 +1270,6 @@ Piece *createPiece(Piece *piece) {
     }
     else if (smpStr(piece->pieceName, Z_BLOCK_NAME)) {
         return new Z_Block();
-    }
-    else {
-        cerr << "createPiece" << endl;
-        return new I_Block();
     }
 }
 
@@ -1338,29 +1325,29 @@ void sortXY(array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE> &arr) {
     }
 }
 
-void setArraysPixels(const array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>& arr, char pixel) {
+void setArraysPixels(char field[FIELD_HEIGHT][FIELD_WIDTH], const array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>& arr, char pixel) {
     for (pair<int, int> cord : arr) {
         field[cord.second][cord.first] = pixel;
     }
 }
 
 pair<vector<string>, vector<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>>>
-        getAllActionsAndTheirPosition(Piece *piece) {
+        getAllActionsAndTheirPosition(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *piece) {
     set<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>> positionsSet;
     array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE> cordsArr;
 
     vector<string> actions;
     vector<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>> positions;
 
-    Piece *tempPiece;
+    Piece *tempPiece = piece;
 
     list<string> actionsList = getInputList((tempPiece->pieceName != O_BLOCK_NAME));
 
     for (const string &str: actionsList) {
         tempPiece = createPiece(piece);
-        executeListOfActions(tempPiece, str);
+        executeListOfActions(field, tempPiece, str);
 
-        if (!tempPiece->canMoveDown() && tempPiece->isPixelsInField()) {
+        if (!tempPiece->canMoveDown(field) && tempPiece->isPixelsInField()) {
             cordsArr = tempPiece->getCords();
             sortXY(cordsArr);
             if (positionsSet.insert(cordsArr).second) {
@@ -1368,7 +1355,7 @@ pair<vector<string>, vector<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>>>
                 positions.push_back(cordsArr);
             }
         }
-        tempPiece->clearPixels();
+        tempPiece->clearPixels(field);
         delete tempPiece;
     }
     return make_pair(actions, positions);
@@ -1390,7 +1377,7 @@ int getMaxY(const array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>& arr) {
     return max_(NUM_OF_BLOCK_IN_PIECE, arr[0].second, arr[1].second, arr[2].second, arr[3].second);
 }
 
-int getColumnHeight(int column) {
+int getColumnHeight(char field[FIELD_HEIGHT][FIELD_WIDTH], int column) {
     for (int i = 0; i < FIELD_HEIGHT; ++i) {
         if (field[i][column] != EMPTY_PIXEL) {
             return FIELD_HEIGHT - i;
@@ -1399,7 +1386,7 @@ int getColumnHeight(int column) {
     return 0;
 }
 
-int bumpinessCheck(int startColumn = 0, int endColumn = FIELD_WIDTH) {
+int bumpinessCheck(char field[FIELD_HEIGHT][FIELD_WIDTH], int startColumn = 0, int endColumn = FIELD_WIDTH) {
     // calculate different between columns height
     int sum = 0;
 
@@ -1411,7 +1398,7 @@ int bumpinessCheck(int startColumn = 0, int endColumn = FIELD_WIDTH) {
     }
 
     for (int i = startColumn; i < endColumn; ++i) {
-        sum += abs(getColumnHeight(i) - getColumnHeight(i + 1));
+        sum += abs(getColumnHeight(field, i) - getColumnHeight(field, i + 1));
     }
     return sum;
 }
@@ -1426,7 +1413,7 @@ int numOfBlocksInRightmostLaneCheck(const array<pair<int, int>, NUM_OF_BLOCK_IN_
     return num;
 }
 
-int numOfBlocksAboveHolesCheck(int startColumn = 0, int endColumn = FIELD_WIDTH) {
+int numOfBlocksAboveHolesCheck(char field[FIELD_HEIGHT][FIELD_WIDTH], int startColumn = 0, int endColumn = FIELD_WIDTH) {
     int num = 0;
     bool flag;
     for (int j = startColumn; j < endColumn; ++j) {
@@ -1446,7 +1433,7 @@ int numOfBlocksAboveHolesCheck(int startColumn = 0, int endColumn = FIELD_WIDTH)
     return num;
 }
 
-int numOfClearingLinesCheck() {
+int numOfClearingLinesCheck(char field[FIELD_HEIGHT][FIELD_WIDTH]) {
     int num = 0;
     bool filled;
     for (int i = 0; i < FIELD_HEIGHT; ++i) {
@@ -1464,16 +1451,19 @@ int numOfClearingLinesCheck() {
     return num;
 }
 
-int clearingNotFourLinesCheck() {
-    int num = numOfClearingLinesCheck();
-    if (num == 0) {
-        return 0;
+int tetrisCheck(char field[FIELD_HEIGHT][FIELD_WIDTH]) {
+    if (numOfClearingLinesCheck(field) == 4) {
+        return 1;
     }
-    else if (num != 4) {
+    return 0;
+}
+
+int clearingNotFourLinesCheck(char field[FIELD_HEIGHT][FIELD_WIDTH]) {
+    int num = numOfClearingLinesCheck(field);
+    if (num == 4) {
         return 1;
     }
     else {
-        cerr << "clearingNotFourLinesCheck" << endl;
         return -1;
     }
 }
@@ -1482,7 +1472,7 @@ int getMaxHeight(int minY) {
     return FIELD_HEIGHT - minY;
 }
 
-int numOfGlobalHolesCheck(int startColumn = 0, int endColumn = FIELD_WIDTH) {
+int numOfGlobalHolesCheck(char field[FIELD_HEIGHT][FIELD_WIDTH], int startColumn = 0, int endColumn = FIELD_WIDTH) {
     int num = 0;
     bool flag;
     for (int j = startColumn; j < endColumn; ++j) {
@@ -1502,7 +1492,30 @@ int numOfGlobalHolesCheck(int startColumn = 0, int endColumn = FIELD_WIDTH) {
     return num;
 }
 
-double getScore(const array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>& arr, const double *params = scoreParams) {
+int numOfPillarsCheck(char field[FIELD_HEIGHT][FIELD_WIDTH], int startColumn = 0, int endColumn = FIELD_WIDTH) {
+    int numOfPillars = 0;
+    for (int j = startColumn; j < endColumn; ++j) {
+        if (j == 0) {
+            if (getColumnHeight(field, j + 1) - getColumnHeight(field, j) >= 3) {
+                ++numOfPillars;
+            }
+        }
+        else if (j == FIELD_WIDTH - 1) {
+            if (getColumnHeight(field, j - 1) - getColumnHeight(field, j) >= 3) {
+                ++numOfPillars;
+            }
+        }
+        else {
+            if ((getColumnHeight(field, j - 1) - getColumnHeight(field, j) >= 3) &&
+                (getColumnHeight(field, j + 1) - getColumnHeight(field, j) >= 3)) {
+                ++numOfPillars;
+            }
+        }
+    }
+    return numOfPillars;
+}
+
+double getScore(char field[FIELD_HEIGHT][FIELD_WIDTH], const array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>& arr, const double *params = scoreParams) {
     double posScore = 0;
 
     int maxX = getMaxX(arr);
@@ -1510,28 +1523,28 @@ double getScore(const array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>& arr, const d
     int maxY = getMaxY(arr);
     int minY = getMinY(arr);
 
-    posScore += params[0] * bumpinessCheck(minX - 1, maxX + 1);
+    posScore += params[0] * bumpinessCheck(field, minX - 1, maxX + 1);
 
-    posScore += params[1] * numOfBlocksAboveHolesCheck(minX, maxX + 1);
+    posScore += params[1] * numOfBlocksAboveHolesCheck(field, minX, maxX + 1);
     posScore += params[2] * getMaxHeight(minY);
-    posScore += params[3] * numOfGlobalHolesCheck(minX, maxX + 1);
-//    posScore += params[4] * numOfClearingLinesCheck();
-
-    posScore += params[4] * clearingNotFourLinesCheck();
+    posScore += params[3] * numOfGlobalHolesCheck(field, minX, maxX + 1);
+    posScore += params[4] * clearingNotFourLinesCheck(field);
     if (maxX == FIELD_WIDTH - 1) {
         posScore += params[5] * numOfBlocksInRightmostLaneCheck(arr);
     }
+    posScore += -params[6] * tetrisCheck(field);
+    posScore += params[7] * numOfPillarsCheck(field, minX, maxX + 1);
     return posScore;
 }
 
-string getBestPosition(const pair<vector<string>, vector<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>>>& posList, const double *params) {
+string getBestPosition(char field[FIELD_HEIGHT][FIELD_WIDTH], const pair<vector<string>, vector<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>>>& posList, const double *params) {
     int bestPosIndex = 0;
     double curPosScore, bestPosScore = 10000000;
 
     for (int i = 0; i < posList.first.size(); ++i) {
-        setArraysPixels(posList.second[i], '@');
-        curPosScore = getScore(posList.second[i], params);
-        setArraysPixels(posList.second[i], EMPTY_PIXEL);
+        setArraysPixels(field, posList.second[i], '@');
+        curPosScore = getScore(field, posList.second[i], params);
+        setArraysPixels(field, posList.second[i], EMPTY_PIXEL);
         if (curPosScore < bestPosScore) {
             bestPosScore = curPosScore;
             bestPosIndex = i;
@@ -1541,70 +1554,61 @@ string getBestPosition(const pair<vector<string>, vector<array<pair<int, int>, N
 }
 
 void player() {
-    init();
+    char field[FIELD_HEIGHT][FIELD_WIDTH];
+    int score, totalClearedLines, numOfTetris, numOfClearingLines;
+    init(field, score, totalClearedLines, numOfTetris, numOfClearingLines);
 
     Piece *nextPiece = getRandPiece(), *curPiece;
     char input;
 
-    while (!checkLose()) {
+    while (!checkLose(field)) {
         curPiece = nextPiece;
         nextPiece = getRandPiece();
-        curPiece->setPixels();
-        printField();
+        curPiece->setPixels(field);
+        printField(field);
 
-        while (curPiece->canMoveDown()) {
+        while (curPiece->canMoveDown(field)) {
             cin >> input;
-            doAction(curPiece, getAction(input));
-            printField();
+            doAction(field, curPiece, getAction(input));
+            printField(field);
         }
         curPiece->~Piece();
-        checkLines();
+        checkLines(field, score, totalClearedLines, numOfTetris, numOfClearingLines);
     }
-    endGame();
+    endGame(score, totalClearedLines, numOfTetris, numOfClearingLines);
 }
 
 // {score, totalClearedLines, numOfTetris, numOfClearingLines}
 array<int, 4> AI(bool printGame = true, const double *params = scoreParams) {
-    init();
+    char field[FIELD_HEIGHT][FIELD_WIDTH];
+    int score, totalClearedLines, numOfTetris, numOfClearingLines;
+    init(field, score, totalClearedLines, numOfTetris, numOfClearingLines);
 
     Piece *nextPiece = getRandPiece(), *curPiece;
     string actionsToBestPosition;
 
-    while (!checkLose()) {
+    while (!checkLose(field)) {
         curPiece = nextPiece;
         nextPiece = getRandPiece();
-        curPiece->setPixels();
+        curPiece->setPixels(field);
         if (printGame) {
-            printField();
+            printField(field);
         }
         pair<vector<string>, vector<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>>>
-                allActionsAndTheirPosition = getAllActionsAndTheirPosition(curPiece);
+                allActionsAndTheirPosition = getAllActionsAndTheirPosition(field, curPiece);
 
-        actionsToBestPosition = getBestPosition(allActionsAndTheirPosition, params);
+        actionsToBestPosition = getBestPosition(field, allActionsAndTheirPosition, params);
 
-        executeListOfActions(curPiece, actionsToBestPosition, AI_MOVES_DELAY, printGame);
+        executeListOfActions(field, curPiece, actionsToBestPosition, AI_MOVES_DELAY, printGame);
 
         delete curPiece;
-        checkLines();
+        checkLines(field, score, totalClearedLines, numOfTetris, numOfClearingLines);
     }
     if (printGame) {
-        printField();
-        endGame();
+        printField(field);
+        endGame(score, totalClearedLines, numOfTetris, numOfClearingLines);
     }
     return {score, totalClearedLines, numOfTetris, numOfClearingLines};
-}
-
-void testMove() {
-    init();
-    Piece *piece;
-    piece = new I_Block();executeListOfActions(piece, "qw");piece->setPixels();printField();delete piece;
-}
-
-void test() {
-    init();
-
-//    Piece *piece = getRandPiece();
-    cout << getRandDouble(2.5, 3.5, 1);
 }
 
 void testAI(int numOfGame) {
@@ -1636,12 +1640,7 @@ public:
     Species() {
         gens = new double[GEN_LENGTH];
         for (int i = 0; i < GEN_LENGTH; ++i) {
-            if (USE_INIT_GENS) {
-                gens[i] = initGens[i];
-            }
-            else {
-                gens[i] = getRandDouble(GEN_MIN_START_VALUE, GEN_MAX_START_VALUE, 1);
-            }
+            gens[i] = getRandDouble(GEN_MIN_START_VALUE, GEN_MAX_START_VALUE, 1);
         }
     }
     Species(const double gen[GEN_LENGTH]) {
@@ -1664,12 +1663,25 @@ Species* getClone(const Species& species) {
 
 int fitness(Species species) {
     array<int, 4> result = AI(false, species.gens);
-    return (int)(result[0] * ((double)result[2] / result[3]));
+    if (result[3] != 0) {
+        return (int)(result[0] * (1 + TETRIS_COOLNESS * (double)result[2] / result[3]));
+    }
+    return result[0];
+}
+
+void getFitnessFromTo(pair<Species, int> population[POPULATION_SIZE], int start = 0, int end = POPULATION_SIZE) {
+    for (int i = start; i < end; ++i) {
+        population[i].second = fitness(population[i].first);
+    }
 }
 
 void getPopulationFitness(pair<Species, int> population[POPULATION_SIZE]) {
-    for (int i = 0; i < POPULATION_SIZE; ++i) {
-        population[i].second = fitness(population[i].first);
+    vector <thread> thVec;
+    for (int i = 0; i < NUM_OF_THREADS; ++i) {
+        thVec.emplace_back(getFitnessFromTo, ref(population), i * POPULATION_SIZE / NUM_OF_THREADS, (i + 1) * (POPULATION_SIZE / NUM_OF_THREADS));
+    }
+    for (int i = 0; i < NUM_OF_THREADS; ++i) {
+        thVec.at(i).join();
     }
 }
 
@@ -1757,7 +1769,7 @@ float getAvgPopulationFitness(const pair<Species, int> population[POPULATION_SIZ
 }
 
 int getBestSpeciesPos(pair<Species, int> population[POPULATION_SIZE]) {
-    int maxFitness = 0, posOfBestSpecies;
+    int maxFitness = 0, posOfBestSpecies = 0;
     for (int i = 0; i < POPULATION_SIZE; ++i) {
         if (population[i].second > maxFitness) {
             maxFitness = population[i].second;
@@ -1789,11 +1801,16 @@ void sortArrByFitness(pair<Species, int> population[POPULATION_SIZE]) {
 void trainAI() {
     initRand();
     pair<Species, int> population[POPULATION_SIZE];
-    int bestSpeciesPos;
+    int bestSpeciesPos = 0;
 
     fillPopulation(population);
 
+    auto totalStartTime = chrono::high_resolution_clock::now();
+    auto generationStartTime = chrono::high_resolution_clock::now();
+    auto generationEndTime = chrono::high_resolution_clock::now();
+
     for (int i = 0; i < MAX_GENERATIONS; ++i) {
+        generationStartTime = chrono::high_resolution_clock::now();
         selectionPopulation(population);
         crossoverPopulation(population);
         mutationPopulation(population);
@@ -1807,21 +1824,25 @@ void trainAI() {
         cout << "Best fitness: " << population[bestSpeciesPos].second << endl;
         cout << "Avg fitness: " << getAvgPopulationFitness(population) << endl;
 
-        cout << "Gens: " << population[bestSpeciesPos].first.gens[i];
+        cout << "Gens of best species: " << population[bestSpeciesPos].first.gens[0];
 
-        for (int i = 1; i < GEN_LENGTH; ++i) {
-            cout << ", " << population[bestSpeciesPos].first.gens[i];
+        for (int j = 1; j < GEN_LENGTH; ++j) {
+            cout << ", " << population[bestSpeciesPos].first.gens[j];
         }
-        cout << endl << endl;
+
+        generationEndTime = chrono::high_resolution_clock::now();
+        chrono::duration<float> generationDuration = generationEndTime - generationStartTime;
+        chrono::duration<float> totalDuration = generationEndTime - totalStartTime;
+
+        cout << endl << "Generation time: " << generationDuration.count() << endl;
+        cout << "Total time: " << totalDuration.count() << endl << endl;
     }
 }
 
 int main() {
 //    player();
-//    testAI(10);
 //    AI();
-//    testMove();
-//    test();
+//    testAI(10);
     trainAI();
     return 0;
 }
