@@ -15,7 +15,7 @@ using namespace std;
 #define FIELD_WIDTH 10
 #define FIELD_HEIGHT 16
 
-const int AI_MOVES_DELAY = 0;
+const int AI_MOVES_DELAY = 300000;
 
 const char I_BlockChar = '@';
 const char J_BlockChar = '#';
@@ -50,15 +50,14 @@ const int NUM_OF_SWAP_IN_RAND_SORT = 30;
 
 //////////////////////////////////////////////////
 
-const double BUMPINESS_WEIGHT = 0;
-const double BLOCKS_ABOVE_HOLES_WEIGHT = 0;
-const double MINIMISE_HEIGHT_WEIGHT = 10000;
-const double HOLES_UNDER_BLOCKS_WEIGHT = 0;
-const double CLEARING_NOT_FOUR_LINES_WEIGHT = 0;
-const double BLOCKS_IN_RIGHTMOST_LANE_WEIGHT = 0;
-const double TETRIS_WEIGHT = 0;
-const double NUM_OF_PILLARS_WEIGHT = 0;
-//const double CLEARING_LINES_WEIGHT = -2.2;
+const double BUMPINESS_WEIGHT = 1;
+const double BLOCKS_ABOVE_HOLES_WEIGHT = 8;
+const double MINIMISE_HEIGHT_WEIGHT = 1.5;
+const double HOLES_UNDER_BLOCKS_WEIGHT = 4.5;
+const double CLEARING_NOT_FOUR_LINES_WEIGHT = 0.5;
+const double BLOCKS_IN_RIGHTMOST_LANE_WEIGHT = -1.5;
+const double TETRIS_WEIGHT = 2;
+const double NUM_OF_PILLARS_WEIGHT = 4;
 
 #define NUM_OF_SCORE_PARAMS 8
 
@@ -78,7 +77,7 @@ const double NUM_OF_PILLARS_WEIGHT = 0;
 #define NUM_OF_THREADS 10
 
 //double scoreParams[NUM_OF_SCORE_PARAMS] = {BUMPINESS_WEIGHT, BLOCKS_ABOVE_HOLES_WEIGHT, MINIMISE_HEIGHT_WEIGHT, HOLES_UNDER_BLOCKS_WEIGHT, CLEARING_NOT_FOUR_LINES_WEIGHT, BLOCKS_IN_RIGHTMOST_LANE_WEIGHT, TETRIS_WEIGHT, NUM_OF_PILLARS_WEIGHT};
-double scoreParams[NUM_OF_SCORE_PARAMS] = {2.3, 2.7, 3.9, 5.8, 2.1, 0.9, 9, 1};
+double scoreParams[NUM_OF_SCORE_PARAMS] = {1, 8, 1.5, 4.5, 0.5, -1.5, 2, 4};
 // 1, 2, 4, 9, 9.5, 0, 0, 0
 
 const string I_BLOCK_NAME = "I_Block";
@@ -1955,9 +1954,9 @@ void trainAI() {
 }
 
 int main() {
-//    player();
+    player();
 //    AI();
 //    testAI(10);
-    trainAI();
+//    trainAI();
     return 0;
 }
