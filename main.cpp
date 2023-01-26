@@ -25,6 +25,8 @@ const char S_BlockChar = '&';
 const char T_BlockChar = 'G';
 const char Z_BlockChar = 'W';
 
+#define FIELD_INDENT 4
+
 const char EMPTY_PIXEL = '.';
 
 const char CONTROL_MOVE_DOWN = 's';
@@ -33,7 +35,7 @@ const char CONTROL_MOVE_RIGHT = 'd';
 const char CONTROL_HARD_DROP = 'w';
 const char CONTROL_SPIN_CLOCKWISE = 'e';
 const char CONTROL_SPIN_COUNTERCLOCKWISE = 'q';
-const char CONTROL_HELD_PIECE = ' ';
+const char CONTROL_HELD_PIECE = 'r';
 
 const int SCORE_1_LINE = 100;
 const int SCORE_2_LINE = 300;
@@ -48,10 +50,10 @@ const int NUM_OF_SWAP_IN_RAND_SORT = 30;
 
 //////////////////////////////////////////////////
 
-const double BUMPINESS_WEIGHT = 0.1;
-const double BLOCKS_ABOVE_HOLES_WEIGHT = 1.9;
-const double MINIMISE_HEIGHT_WEIGHT = 1;
-const double HOLES_UNDER_BLOCKS_WEIGHT = 1;
+const double BUMPINESS_WEIGHT = 0;
+const double BLOCKS_ABOVE_HOLES_WEIGHT = 0;
+const double MINIMISE_HEIGHT_WEIGHT = 10000;
+const double HOLES_UNDER_BLOCKS_WEIGHT = 0;
 const double CLEARING_NOT_FOUR_LINES_WEIGHT = 0;
 const double BLOCKS_IN_RIGHTMOST_LANE_WEIGHT = 0;
 const double TETRIS_WEIGHT = 0;
@@ -75,9 +77,9 @@ const double NUM_OF_PILLARS_WEIGHT = 0;
 
 #define NUM_OF_THREADS 10
 
-double scoreParams[NUM_OF_SCORE_PARAMS] = {BUMPINESS_WEIGHT, BLOCKS_ABOVE_HOLES_WEIGHT, MINIMISE_HEIGHT_WEIGHT, HOLES_UNDER_BLOCKS_WEIGHT, CLEARING_NOT_FOUR_LINES_WEIGHT, BLOCKS_IN_RIGHTMOST_LANE_WEIGHT, TETRIS_WEIGHT, NUM_OF_PILLARS_WEIGHT};
-
-//double scoreParams[NUM_OF_SCORE_PARAMS] = {0.5, -1, 7, 6, 0.5, -3, 1, 1};
+//double scoreParams[NUM_OF_SCORE_PARAMS] = {BUMPINESS_WEIGHT, BLOCKS_ABOVE_HOLES_WEIGHT, MINIMISE_HEIGHT_WEIGHT, HOLES_UNDER_BLOCKS_WEIGHT, CLEARING_NOT_FOUR_LINES_WEIGHT, BLOCKS_IN_RIGHTMOST_LANE_WEIGHT, TETRIS_WEIGHT, NUM_OF_PILLARS_WEIGHT};
+double scoreParams[NUM_OF_SCORE_PARAMS] = {2.3, 2.7, 3.9, 5.8, 2.1, 0.9, 9, 1};
+// 1, 2, 4, 9, 9.5, 0, 0, 0
 
 const string I_BLOCK_NAME = "I_Block";
 const string J_BLOCK_NAME = "J_Block";
@@ -135,16 +137,6 @@ void init(char field[FIELD_HEIGHT][FIELD_WIDTH], int& score, int& totalClearedLi
     posInArrOfRandPiece = 0;
 
     fillArrayOfRandPieceTypes();
-}
-
-void printField(char field[FIELD_HEIGHT][FIELD_WIDTH]) {
-    for (int i = 0; i < FIELD_HEIGHT; ++i) {
-        for (int j = 0; j < FIELD_WIDTH; ++j) {
-            cout << field[i][j] << " ";
-        }
-        cout << endl;
-    }
-    cout << endl;
 }
 
 void printIntArr(int *arr, int arrSize) {
@@ -205,8 +197,6 @@ public:
     string pieceName;
 
     void copyPiece(const Piece &piece) {
-        pieceChar = piece.pieceChar;
-
         x1 = piece.x1;
         y1 = piece.y1;
         x2 = piece.x2;
@@ -220,6 +210,13 @@ public:
         yCenter = piece.yCenter;
 
         rotNum = piece.rotNum;
+
+        pieceChar = piece.pieceChar;
+
+        pieceName = piece.pieceName;
+    }
+    char getPieceChar() {
+        return pieceChar;
     }
     bool isPixelsInField(int dX = 0, int dY = 0) const {
         if (max_(NUM_OF_BLOCK_IN_PIECE, y1 + dY, y2 + dY, y3 + dY, y4 + dY) >= FIELD_HEIGHT ||
@@ -312,6 +309,7 @@ public:
     void JLTSZ_Test(char field[FIELD_HEIGHT][FIELD_WIDTH], bool clockwise);
     void I_Test(char field[FIELD_HEIGHT][FIELD_WIDTH], bool clockwise);
 
+    virtual void setInitialState() {}
     virtual void spin(bool clockwise) {
         if (clockwise) {
             bias(rotNum, NUM_OF_ROTATION, 1);
@@ -629,11 +627,7 @@ void Piece::I_Test(char field[FIELD_HEIGHT][FIELD_WIDTH], bool clockwise) {
 
 class I_Block: public Piece {
 public:
-    I_Block() : Piece() {
-        pieceName = I_BLOCK_NAME;
-
-        pieceChar = I_BlockChar;
-
+    void setInitialState() override {
         x1 = FIELD_MIDDLE - 1;
         y1 = 0;
         x2 = FIELD_MIDDLE;
@@ -645,6 +639,14 @@ public:
 
         xCenter = FIELD_MIDDLE + 0.5f;
         yCenter = 0.5f;
+
+        rotNum = 0;
+    }
+
+    I_Block() : Piece() {
+        pieceName = I_BLOCK_NAME;
+        pieceChar = I_BlockChar;
+        setInitialState();
     }
 
     void spin(bool clockwise) override {
@@ -700,11 +702,7 @@ public:
 
 class J_Block: public Piece {
 public:
-    J_Block() : Piece() {
-        pieceName = J_BLOCK_NAME;
-
-        pieceChar = J_BlockChar;
-
+    void setInitialState() override {
         x1 = FIELD_MIDDLE - 1;
         y1 = 0;
         x2 = FIELD_MIDDLE - 1;
@@ -716,6 +714,13 @@ public:
 
         xCenter = FIELD_MIDDLE;
         yCenter = 1;
+
+        rotNum = 0;
+    }
+    J_Block() : Piece() {
+        pieceName = J_BLOCK_NAME;
+        pieceChar = J_BlockChar;
+        setInitialState();
     }
 
     void spin(bool clockwise) override {
@@ -763,11 +768,7 @@ public:
 
 class L_Block: public Piece {
 public:
-    L_Block() : Piece() {
-        pieceName = L_BLOCK_NAME;
-
-        pieceChar = L_BlockChar;
-
+    void setInitialState() override {
         x1 = FIELD_MIDDLE + 1;
         y1 = 0;
         x2 = FIELD_MIDDLE - 1;
@@ -779,6 +780,13 @@ public:
 
         xCenter = FIELD_MIDDLE;
         yCenter = 1;
+
+        rotNum = 0;
+    }
+    L_Block() : Piece() {
+        pieceName = L_BLOCK_NAME;
+        pieceChar = L_BlockChar;
+        setInitialState();
     }
 
     void spin(bool clockwise) override {
@@ -826,11 +834,7 @@ public:
 
 class O_Block: public Piece {
 public:
-    O_Block() : Piece() {
-        pieceName = O_BLOCK_NAME;
-
-        pieceChar = O_BlockChar;
-
+    void setInitialState() override {
         x1 = FIELD_MIDDLE;
         y1 = 0;
         x2 = FIELD_MIDDLE + 1;
@@ -842,6 +846,13 @@ public:
 
         xCenter = FIELD_MIDDLE + 0.5f;
         yCenter = 0.5f;
+
+        rotNum = 0;
+    }
+    O_Block() : Piece() {
+        pieceName = O_BLOCK_NAME;
+        pieceChar = O_BlockChar;
+        setInitialState();
     }
     void spin(bool clockwise) {}
     void wallKickSpin(bool clockwise) {}
@@ -849,11 +860,7 @@ public:
 
 class S_Block: public Piece {
 public:
-    S_Block() : Piece() {
-        pieceName = S_BLOCK_NAME;
-
-        pieceChar = S_BlockChar;
-
+    void setInitialState() override {
         x1 = FIELD_MIDDLE;
         y1 = 0;
         x2 = FIELD_MIDDLE + 1;
@@ -865,6 +872,13 @@ public:
 
         xCenter = FIELD_MIDDLE;
         yCenter = 1;
+
+        rotNum = 0;
+    }
+    S_Block() : Piece() {
+        pieceName = S_BLOCK_NAME;
+        pieceChar = S_BlockChar;
+        setInitialState();
     }
 
     void spin(bool clockwise) override {
@@ -912,11 +926,7 @@ public:
 
 class T_Block: public Piece {
 public:
-    T_Block() : Piece() {
-        pieceName = T_BLOCK_NAME;
-
-        pieceChar = T_BlockChar;
-
+    void setInitialState() override {
         x1 = FIELD_MIDDLE;
         y1 = 0;
         x2 = FIELD_MIDDLE - 1;
@@ -928,6 +938,13 @@ public:
 
         xCenter = FIELD_MIDDLE;
         yCenter = 1;
+
+        rotNum = 0;
+    }
+    T_Block() : Piece() {
+        pieceName = T_BLOCK_NAME;
+        pieceChar = T_BlockChar;
+        setInitialState();
     }
 
     void spin(bool clockwise) override {
@@ -975,11 +992,7 @@ public:
 
 class Z_Block: public Piece {
 public:
-    Z_Block() : Piece() {
-        pieceName = Z_BLOCK_NAME;
-
-        pieceChar = Z_BlockChar;
-
+    void setInitialState() override {
         x1 = FIELD_MIDDLE - 1;
         y1 = 0;
         x2 = FIELD_MIDDLE;
@@ -991,6 +1004,13 @@ public:
 
         xCenter = FIELD_MIDDLE;
         yCenter = 1;
+
+        rotNum = 0;
+    }
+    Z_Block() : Piece() {
+        pieceName = Z_BLOCK_NAME;
+        pieceChar = Z_BlockChar;
+        setInitialState();
     }
 
     void spin(bool clockwise) override {
@@ -1068,6 +1088,65 @@ Piece *getRandPiece() {
     }
 }
 
+void arrayBiasToLeftTop(array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>& arr) {
+
+    while (min_(NUM_OF_BLOCK_IN_PIECE, arr[0].first, arr[1].first, arr[2].first, arr[3].first) > 0) {
+        --arr[0].first;
+        --arr[1].first;
+        --arr[2].first;
+        --arr[3].first;
+    }
+    while (min_(NUM_OF_BLOCK_IN_PIECE, arr[0].second, arr[1].second, arr[2].second, arr[3].second) > 0) {
+        --arr[0].second;
+        --arr[1].second;
+        --arr[2].second;
+        --arr[3].second;
+    }
+}
+
+bool arrContains(array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE> arr, pair<int, int> cords) {
+    for (int i = 0; i < NUM_OF_BLOCK_IN_PIECE; ++i) {
+        if (arr[i].first == cords.first && arr[i].second == cords.second) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void printField(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *heldPiece) {
+    array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE> pieceCord = heldPiece->getCords();
+    arrayBiasToLeftTop(pieceCord);
+    for (int j = 0; j < FIELD_WIDTH; ++j) {
+        cout << field[0][j] << " ";
+    }
+    cout << string(FIELD_INDENT, ' ');
+    cout << "Held piece:" << endl;
+    for (int i = 1; i < 3; ++i) {
+        for (int j = 0; j < FIELD_WIDTH; ++j) {
+            cout << field[i][j] << " ";
+        }
+        cout << string(FIELD_INDENT * 1.5, ' ');
+        for (int k = 0; k < NUM_OF_BLOCK_IN_PIECE; ++k) {
+            if (arrContains(pieceCord, make_pair(k, i - 1))) {
+                cout << heldPiece->getPieceChar();
+            }
+            else {
+                cout << " ";
+            }
+            cout << " ";
+        }
+        cout << endl;
+    }
+
+    for (int i = 3; i < FIELD_HEIGHT; ++i) {
+        for (int j = 0; j < FIELD_WIDTH; ++j) {
+            cout << field[i][j] << " ";
+        }
+        cout << endl;
+    }
+    cout << endl;
+}
+
 void downgradeMatrix(char field[FIELD_HEIGHT][FIELD_WIDTH], int row) {
     for (int i = 0; i < FIELD_WIDTH; ++i) {
         field[row][i] = EMPTY_PIXEL;
@@ -1129,7 +1208,13 @@ int getAction(char c) {
     return '0';
 }
 
-void doAction(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *piece, int action) {
+void swap(Piece *&a, Piece *&b) {
+    Piece *temp = a;
+    a = b;
+    b = temp;
+}
+
+void doAction(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *&piece, int action, Piece *&heldPiece) {
     switch (action) {
         case MOVE_DOWN: {
             piece->moveDown(field);
@@ -1156,6 +1241,10 @@ void doAction(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *piece, int action) {
             break;
         }
         case HELD_PIECE: {
+            swap(piece, heldPiece);
+            heldPiece->clearPixels(field);
+            heldPiece->setInitialState();
+            piece->setPixels(field);
             break;
         }
     }
@@ -1224,11 +1313,11 @@ list<string> getInputList(bool notO_Block) {
     return result;
 }
 
-void executeListOfActions(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *piece, const string& actionsList, int delay = 0, bool pField = false) {
+void executeListOfActions(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *&piece, const string& actionsList, Piece *&heldPiece, int delay = 0, bool pField = false) {
     for (char action: actionsList) {
-        doAction(field, piece, getAction(action));
+        doAction(field, piece, getAction(action), heldPiece);
         if (pField) {
-            printField(field);
+            printField(field, heldPiece);
         }
         usleep(delay);
     }
@@ -1332,7 +1421,7 @@ void setArraysPixels(char field[FIELD_HEIGHT][FIELD_WIDTH], const array<pair<int
 }
 
 pair<vector<string>, vector<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>>>
-        getAllActionsAndTheirPosition(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *piece) {
+        getAllActionsAndTheirPosition(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *piece, Piece *heldPiece) {
     set<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>> positionsSet;
     array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE> cordsArr;
 
@@ -1345,7 +1434,7 @@ pair<vector<string>, vector<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>>>
 
     for (const string &str: actionsList) {
         tempPiece = createPiece(piece);
-        executeListOfActions(field, tempPiece, str);
+        executeListOfActions(field, tempPiece, str, heldPiece);
 
         if (!tempPiece->canMoveDown(field) && tempPiece->isPixelsInField()) {
             cordsArr = tempPiece->getCords();
@@ -1537,7 +1626,7 @@ double getScore(char field[FIELD_HEIGHT][FIELD_WIDTH], const array<pair<int, int
     return posScore;
 }
 
-string getBestPosition(char field[FIELD_HEIGHT][FIELD_WIDTH], const pair<vector<string>, vector<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>>>& posList, const double *params) {
+pair<string, double> getBestPosition(char field[FIELD_HEIGHT][FIELD_WIDTH], const pair<vector<string>, vector<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>>>& posList, const double *params) {
     int bestPosIndex = 0;
     double curPosScore, bestPosScore = 10000000;
 
@@ -1550,7 +1639,7 @@ string getBestPosition(char field[FIELD_HEIGHT][FIELD_WIDTH], const pair<vector<
             bestPosIndex = i;
         }
     }
-    return posList.first[bestPosIndex];
+    return make_pair(posList.first[bestPosIndex], bestPosScore);
 }
 
 void player() {
@@ -1558,19 +1647,19 @@ void player() {
     int score, totalClearedLines, numOfTetris, numOfClearingLines;
     init(field, score, totalClearedLines, numOfTetris, numOfClearingLines);
 
-    Piece *nextPiece = getRandPiece(), *curPiece;
+    Piece *nextPiece = getRandPiece(), *curPiece, *heldPiece = new I_Block();
     char input;
 
     while (!checkLose(field)) {
         curPiece = nextPiece;
         nextPiece = getRandPiece();
         curPiece->setPixels(field);
-        printField(field);
+        printField(field, heldPiece);
 
         while (curPiece->canMoveDown(field)) {
             cin >> input;
-            doAction(field, curPiece, getAction(input));
-            printField(field);
+            doAction(field, curPiece, getAction(input), heldPiece);
+            printField(field, heldPiece);
         }
         curPiece->~Piece();
         checkLines(field, score, totalClearedLines, numOfTetris, numOfClearingLines);
@@ -1584,7 +1673,8 @@ array<int, 4> AI(bool printGame = true, const double *params = scoreParams) {
     int score, totalClearedLines, numOfTetris, numOfClearingLines;
     init(field, score, totalClearedLines, numOfTetris, numOfClearingLines);
 
-    Piece *nextPiece = getRandPiece(), *curPiece;
+    Piece *nextPiece = getRandPiece(), *curPiece, *heldPiece = new I_Block();
+
     string actionsToBestPosition;
 
     while (!checkLose(field)) {
@@ -1592,20 +1682,28 @@ array<int, 4> AI(bool printGame = true, const double *params = scoreParams) {
         nextPiece = getRandPiece();
         curPiece->setPixels(field);
         if (printGame) {
-            printField(field);
+            printField(field, heldPiece);
         }
-        pair<vector<string>, vector<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>>>
-                allActionsAndTheirPosition = getAllActionsAndTheirPosition(field, curPiece);
+        auto allActionsAndTheirPosition = getAllActionsAndTheirPosition(field, curPiece, heldPiece);
+        auto allActionsAndTheirPositionHeldPiece = getAllActionsAndTheirPosition(field, heldPiece, heldPiece);
 
-        actionsToBestPosition = getBestPosition(field, allActionsAndTheirPosition, params);
+        pair<string, double> bestPosition = getBestPosition(field, allActionsAndTheirPosition, params);
+        pair<string, double> bestPositionHeldPiece = getBestPosition(field, allActionsAndTheirPositionHeldPiece, params);
 
-        executeListOfActions(field, curPiece, actionsToBestPosition, AI_MOVES_DELAY, printGame);
+        if (bestPosition.second <= bestPositionHeldPiece.second) {
+            actionsToBestPosition = bestPosition.first;
+        }
+        else {
+            actionsToBestPosition = CONTROL_HELD_PIECE + bestPositionHeldPiece.first;
+        }
+
+        executeListOfActions(field, curPiece, actionsToBestPosition, heldPiece, AI_MOVES_DELAY, printGame);
 
         delete curPiece;
         checkLines(field, score, totalClearedLines, numOfTetris, numOfClearingLines);
     }
     if (printGame) {
-        printField(field);
+        printField(field, heldPiece);
         endGame(score, totalClearedLines, numOfTetris, numOfClearingLines);
     }
     return {score, totalClearedLines, numOfTetris, numOfClearingLines};
@@ -1614,11 +1712,28 @@ array<int, 4> AI(bool printGame = true, const double *params = scoreParams) {
 void testAI(int numOfGame) {
     float avgScore = 0, avgClearedLines = 0, avgTetrisRate = 0;
     array<int, 4> result;
+    vector <thread> thVec;
+    auto totalStartTime = chrono::high_resolution_clock::now();
+    auto totalEndTime = chrono::high_resolution_clock::now();
+    cout << "Score; Cleared lines; Tetris rate; Duration" << endl;
+
     for (int i = 0; i < numOfGame; ++i) {
-        result = AI(false);
-        avgScore += result[0];
-        avgClearedLines += result[1];
-        avgTetrisRate += getPercent(result[2], result[3]);
+        thVec.emplace_back(
+                [&result, &avgScore, &avgClearedLines, &avgTetrisRate, &totalStartTime, &totalEndTime](){
+                    result = AI(false);
+                    avgScore += result[0];
+                    avgClearedLines += result[1];
+                    avgTetrisRate += getPercent(result[2], result[3]);
+
+                    totalEndTime = chrono::high_resolution_clock::now();
+                    chrono::duration<float> totalDuration = totalEndTime - totalStartTime;
+
+                    cout << result[0] << " " << result[1] << " " <<
+                    getPercent(result[2], result[3]) << "% " << totalDuration.count() << endl;
+                });
+    }
+    for (int i = 0; i < numOfGame; ++i) {
+        thVec.at(i).join();
     }
     avgScore /= numOfGame;
     avgClearedLines /= numOfGame;
