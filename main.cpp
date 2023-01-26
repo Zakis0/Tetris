@@ -1112,21 +1112,44 @@ bool arrContains(array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE> arr, pair<int, int
     return false;
 }
 
-void printField(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *heldPiece) {
+float getPercent(int dividend, int divisor, int precision = 2) {
+    if (divisor == 0) {
+        return 0;
+
+    }
+    return floor((float)dividend / divisor * 100 * pow(10, precision)) / pow(10, precision);
+}
+
+void printField(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *heldPiece, array<int, 4> statArr) {
     array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE> pieceCord = heldPiece->getCords();
     arrayBiasToLeftTop(pieceCord);
     for (int j = 0; j < FIELD_WIDTH; ++j) {
         cout << field[0][j] << " ";
     }
-    cout << string(FIELD_INDENT, ' ');
-    cout << "Held piece:" << endl;
-    for (int i = 1; i < 3; ++i) {
+    cout << string(FIELD_INDENT, ' ') << "Score: " << statArr[0] << endl;
+    for (int j = 0; j < FIELD_WIDTH; ++j) {
+        cout << field[1][j] << " ";
+    }
+    cout << string(FIELD_INDENT, ' ') << "Num of cleared lines: " << statArr[1] << endl;
+    for (int j = 0; j < FIELD_WIDTH; ++j) {
+        cout << field[2][j] << " ";
+    }
+    cout << string(FIELD_INDENT, ' ') << "Tetris rate: " << getPercent(statArr[2], statArr[3]) << "%" << endl;
+    for (int j = 0; j < FIELD_WIDTH; ++j) {
+        cout << field[3][j] << " ";
+    }
+    cout << endl;
+    for (int j = 0; j < FIELD_WIDTH; ++j) {
+        cout << field[4][j] << " ";
+    }
+    cout << string(FIELD_INDENT, ' ') << "Held piece:" << endl;
+    for (int i = 5; i < 7; ++i) {
         for (int j = 0; j < FIELD_WIDTH; ++j) {
             cout << field[i][j] << " ";
         }
         cout << string(FIELD_INDENT * 1.5, ' ');
         for (int k = 0; k < NUM_OF_BLOCK_IN_PIECE; ++k) {
-            if (arrContains(pieceCord, make_pair(k, i - 1))) {
+            if (arrContains(pieceCord, make_pair(k, i - 5))) {
                 cout << heldPiece->getPieceChar();
             }
             else {
@@ -1137,7 +1160,7 @@ void printField(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *heldPiece) {
         cout << endl;
     }
 
-    for (int i = 3; i < FIELD_HEIGHT; ++i) {
+    for (int i = 7; i < FIELD_HEIGHT; ++i) {
         for (int j = 0; j < FIELD_WIDTH; ++j) {
             cout << field[i][j] << " ";
         }
@@ -1280,14 +1303,6 @@ bool checkLose(char field[FIELD_HEIGHT][FIELD_WIDTH]) {
     return false;
 }
 
-float getPercent(int dividend, int divisor, int precision = 2) {
-    if (divisor == 0) {
-        return 0;
-
-    }
-    return floor((float)dividend / divisor * 100 * pow(10, precision)) / pow(10, precision);
-}
-
 void endGame(int score, int totalClearedLines, int numOfTetris, int numOfClearingLines) {
     cout << "Score: " << score << endl;
     cout << "Num of cleared lines: " << totalClearedLines << endl;
@@ -1312,11 +1327,11 @@ list<string> getInputList(bool notO_Block) {
     return result;
 }
 
-void executeListOfActions(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *&piece, const string& actionsList, Piece *&heldPiece, int delay = 0, bool pField = false) {
+void executeListOfActions(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *&piece, const string& actionsList, Piece *&heldPiece, array<int, 4> statArr, int delay = 0, bool pField = false) {
     for (char action: actionsList) {
         doAction(field, piece, getAction(action), heldPiece);
         if (pField) {
-            printField(field, heldPiece);
+            printField(field, heldPiece, statArr);
         }
         usleep(delay);
     }
@@ -1420,7 +1435,7 @@ void setArraysPixels(char field[FIELD_HEIGHT][FIELD_WIDTH], const array<pair<int
 }
 
 pair<vector<string>, vector<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>>>
-        getAllActionsAndTheirPosition(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *piece, Piece *heldPiece) {
+        getAllActionsAndTheirPosition(char field[FIELD_HEIGHT][FIELD_WIDTH], Piece *piece, Piece *heldPiece, array<int, 4> statArr) {
     set<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>> positionsSet;
     array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE> cordsArr;
 
@@ -1433,7 +1448,7 @@ pair<vector<string>, vector<array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>>>
 
     for (const string &str: actionsList) {
         tempPiece = createPiece(piece);
-        executeListOfActions(field, tempPiece, str, heldPiece);
+        executeListOfActions(field, tempPiece, str, heldPiece, statArr);
 
         if (!tempPiece->canMoveDown(field) && tempPiece->isPixelsInField()) {
             cordsArr = tempPiece->getCords();
@@ -1646,6 +1661,8 @@ void player() {
     int score, totalClearedLines, numOfTetris, numOfClearingLines;
     init(field, score, totalClearedLines, numOfTetris, numOfClearingLines);
 
+
+
     Piece *nextPiece = getRandPiece(), *curPiece, *heldPiece = new I_Block();
     char input;
 
@@ -1653,12 +1670,12 @@ void player() {
         curPiece = nextPiece;
         nextPiece = getRandPiece();
         curPiece->setPixels(field);
-        printField(field, heldPiece);
+        printField(field, heldPiece, {score, totalClearedLines, numOfTetris, numOfClearingLines});
 
         while (curPiece->canMoveDown(field)) {
             cin >> input;
             doAction(field, curPiece, getAction(input), heldPiece);
-            printField(field, heldPiece);
+            printField(field, heldPiece, {score, totalClearedLines, numOfTetris, numOfClearingLines});
         }
         curPiece->~Piece();
         checkLines(field, score, totalClearedLines, numOfTetris, numOfClearingLines);
@@ -1681,10 +1698,10 @@ array<int, 4> AI(bool printGame = true, const double *params = scoreParams) {
         nextPiece = getRandPiece();
         curPiece->setPixels(field);
         if (printGame) {
-            printField(field, heldPiece);
+            printField(field, heldPiece, {score, totalClearedLines, numOfTetris, numOfClearingLines});
         }
-        auto allActionsAndTheirPosition = getAllActionsAndTheirPosition(field, curPiece, heldPiece);
-        auto allActionsAndTheirPositionHeldPiece = getAllActionsAndTheirPosition(field, heldPiece, heldPiece);
+        auto allActionsAndTheirPosition = getAllActionsAndTheirPosition(field, curPiece, heldPiece, {score, totalClearedLines, numOfTetris, numOfClearingLines});
+        auto allActionsAndTheirPositionHeldPiece = getAllActionsAndTheirPosition(field, heldPiece, heldPiece, {score, totalClearedLines, numOfTetris, numOfClearingLines});
 
         pair<string, double> bestPosition = getBestPosition(field, allActionsAndTheirPosition, params);
         pair<string, double> bestPositionHeldPiece = getBestPosition(field, allActionsAndTheirPositionHeldPiece, params);
@@ -1696,13 +1713,13 @@ array<int, 4> AI(bool printGame = true, const double *params = scoreParams) {
             actionsToBestPosition = CONTROL_HELD_PIECE + bestPositionHeldPiece.first;
         }
 
-        executeListOfActions(field, curPiece, actionsToBestPosition, heldPiece, AI_MOVES_DELAY, printGame);
+        executeListOfActions(field, curPiece, actionsToBestPosition, heldPiece, {score, totalClearedLines, numOfTetris, numOfClearingLines}, AI_MOVES_DELAY, printGame);
 
         delete curPiece;
         checkLines(field, score, totalClearedLines, numOfTetris, numOfClearingLines);
     }
     if (printGame) {
-        printField(field, heldPiece);
+        printField(field, heldPiece, {score, totalClearedLines, numOfTetris, numOfClearingLines});
         endGame(score, totalClearedLines, numOfTetris, numOfClearingLines);
     }
     return {score, totalClearedLines, numOfTetris, numOfClearingLines};
