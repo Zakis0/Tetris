@@ -1,18 +1,11 @@
-#include <iostream>
-
-#include "headers/tetrisFunctions.h"
-#include "headers/AI.h"
-
-using namespace std;
-
-void test() {
-
-}
+#include "libraries/TetrisFunctions/tetrisFunctions.h"
+#include "libraries/AI/AI.h"
 
 int main() {
     player();
 //    testAI(10);
-//    AI();
+//    AI(true, scoreParams, 0);
 //    trainAI();
     return 0;
 }
+
