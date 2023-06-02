@@ -98,6 +98,9 @@ void printField(Matrix& field, Piece *heldPiece, array<int, 4> statArr, Queue &q
 
     Matrix screen = gameField.connectMatrixHorizontal(infoBlock, INFO_BLOCK_LEFT_BIAS, INFO_BLOCK_TOP_BIAS);
 
+    for (int i = 0; i < NUM_OF_ENDL_IN_PRINT; ++i) {
+        cout << endl;
+    }
     screen.printMatrix();
 
     cout << "Score: " << statArr[0] << "; NCL: " << statArr[1] << "; Tetris rate: " << getPercent(statArr[2], statArr[3]) << "%" << endl;
@@ -345,8 +348,10 @@ int getAction(char c) {
         case CONTROL_HELD_PIECE: {
             return 6;
         }
+        default: {
+            throw c;
+        }
     }
-    return '0';
 }
 
 void doAction(Matrix& field, Piece *&piece, int action, Piece *&heldPiece) {
@@ -407,7 +412,12 @@ void player() {
         printField(field, heldPiece, {score, totalClearedLines, numOfTetris, numOfClearingLines}, queueOfRandPieceTypes);
         while (piece->canMoveDown(field)) {
             cin >> input;
-            doAction(field, piece, getAction(input), heldPiece);
+            try {
+                doAction(field, piece, getAction(input), heldPiece);
+            }
+            catch (char c) {
+                cerr << c << " is not a command" << endl;
+            }
             printField(field, heldPiece, {score, totalClearedLines, numOfTetris, numOfClearingLines}, queueOfRandPieceTypes);
         }
         delete piece;

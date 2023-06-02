@@ -5,7 +5,6 @@
 #include "../../Config/constants.h"
 #include "../Piece/Piece.h"
 #include "../TetrisFunctions/tetrisFunctions.h"
-#include "../GeneticAlgorithm/geneticAlgorithm.h"
 
 #include <vector>
 #include <set>

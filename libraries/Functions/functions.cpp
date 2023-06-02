@@ -126,100 +126,16 @@ bool getTrueWithProbability(int probability) {
     return getRandInt(0, 100) < probability;
 }
 
-char **createMatrix(int height, int width) {
-    char **result = new char*[height];
-    for (int i = 0; i < height; ++i) {
-        result[i] = new char[width];
-    }
-    return result;
-}
-
-void error(string str) {
-    cerr << str << endl;
-    exit(-1);
-}
-
-char **connectMatrixHorizontal(char **m1, char **m2, char emptyPixel, int m1Height, int m1Width, int m2Height, int m2Width, int m2TopBias, int m2LeftBias) {
-    char **connectedMatrix;
-    int connectedMatrixHeight, connectedMatrixWidth;
-
-    if (m1Height < m2Height + m2TopBias) {
-        connectedMatrixHeight = m1Height + m2TopBias;
-        connectedMatrixWidth = m1Width + m2Width + m2LeftBias;
-    }
-    else {
-        connectedMatrixHeight = m1Height;
-        connectedMatrixWidth = m1Width + m2Width + m2LeftBias;
-    }
-
-    if (connectedMatrixHeight > MAX_SCREEN_HEIGHT ||
-        connectedMatrixWidth > MAX_SCREEN_WIDTH) {
-        error("Screen size exceeded");
-    }
-
-    connectedMatrix = createMatrix(connectedMatrixHeight, connectedMatrixWidth);
-
-    for (int i = 0; i < m1Height; ++i) {
-        for (int j = 0; j < m1Width + m2Width + m2LeftBias; ++j) {
-            connectedMatrix[i][j] = emptyPixel;
-        }
-    }
-    for (int i = 0; i < m1Height; ++i) {
-        for (int j = 0; j < m1Width; ++j) {
-            connectedMatrix[i][j] = m1[i][j];
-        }
-    }
-    for (int i = 0; i < m2Height; ++i) {
-        for (int j = 0; j < m2Width; ++j) {
-            connectedMatrix[i + m2TopBias][j + m1Width + m2LeftBias] = m2[i][j];
-        }
-    }
-    return connectedMatrix;
-}
-
-char **connectMatrixVertical(char **m1, char **m2, char emptyPixel, int m1Height, int m1Width, int m2Height, int m2Width, int m2TopBias, int m2LeftBias) {
-    char **connectedMatrix;
-    int connectedMatrixHeight, connectedMatrixWidth;
-
-    if (m1Width < m1Width + m2LeftBias) {
-        connectedMatrixHeight = m1Height + m2Height + m2TopBias;
-        connectedMatrixWidth = m1Width + m2LeftBias;
-    }
-    else {
-        connectedMatrixHeight = m1Height + m2Height + m2TopBias;
-        connectedMatrixWidth = m1Width;
-    }
-
-    if (connectedMatrixHeight > MAX_SCREEN_HEIGHT ||
-        connectedMatrixWidth > MAX_SCREEN_WIDTH) {
-        error("Screen size exceeded");
-    }
-    connectedMatrix = createMatrix(m1Height + m2Height + m2TopBias, m1Width);
-
-    for (int i = 0; i < m1Height + m2Height + m2TopBias; ++i) {
-        for (int j = 0; j < m1Width + m2LeftBias; ++j) {
-            connectedMatrix[i][j] = emptyPixel;
-        }
-    }
-    for (int i = 0; i < m1Height; ++i) {
-        for (int j = 0; j < m1Width; ++j) {
-            connectedMatrix[i][j] = m1[i][j];
-        }
-    }
-    for (int i = 0; i < m2Height; ++i) {
-        for (int j = 0; j < m2Width; ++j) {
-            connectedMatrix[i + m1Height + m2TopBias][j + m2LeftBias] = m2[i][j];
-        }
-    }
-    for (int i = 0; i < m2Height + m1Height + m2TopBias; ++i) {
-        for (int j = 0; j < m2Width + m2LeftBias; ++j) {
-        }
-    }
-    return connectedMatrix;
-}
-
 void roundToZero(double &n) {
     if (abs(n) < 0.001) {
         n = 0;
     }
+}
+
+double round(double number, int digits) {
+    double result = number;
+    result *= pow(10, digits);
+    result = round(result);
+    result /= pow(10, digits);
+    return result;
 }

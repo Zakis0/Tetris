@@ -29,10 +29,16 @@ const double TETRIS_WEIGHT = 3;
 const double NUM_OF_PILLARS_WEIGHT = 0;
 
 //const double scoreParams[NUM_OF_SCORE_PARAMS] = {BUMPINESS_WEIGHT, BLOCKS_ABOVE_HOLES_WEIGHT, MINIMISE_HEIGHT_WEIGHT, HOLES_UNDER_BLOCKS_WEIGHT, CLEARING_NOT_FOUR_LINES_WEIGHT, BLOCKS_IN_RIGHTMOST_LANE_WEIGHT, TETRIS_WEIGHT, NUM_OF_PILLARS_WEIGHT};
-//const double scoreParams[NUM_OF_SCORE_PARAMS] = {0.05, -0.75, 4.75, 7, 8, 0, 3, 0};
-//const double scoreParams[NUM_OF_SCORE_PARAMS] = {0.25, 4.75, 3, 2, 8, 3, 5, 6};
-//const double scoreParams[NUM_OF_SCORE_PARAMS] = {0.25, 8.75, 1.75, 9, 9, 2, 4, 9};
-const double scoreParams[NUM_OF_SCORE_PARAMS] = {0, 9, 1.75, 3, 9, 2, 2, 1};
+
+//const double scoreParams[NUM_OF_SCORE_PARAMS] = {0.5, 4.2, 7, 9, 3, 0, 6, 8};
+//const double scoreParams[NUM_OF_SCORE_PARAMS] = {0.6, 8, 7, 9, 3, 0, 5, 1};//142k
+//const double scoreParams[NUM_OF_SCORE_PARAMS] = {1, 6, 7, 9, 3, 0, 6, 0};//139k
+//const double scoreParams[NUM_OF_SCORE_PARAMS] = {0.25, 4, 7, 9, 2, 0, 7, 0};//112k
+const double scoreParams[NUM_OF_SCORE_PARAMS] = {0, 6, 7, 9, 2, -0.25, 6, 0};//122k top
+//const double scoreParams[NUM_OF_SCORE_PARAMS] = {0.6, 8.45, 7, 8, 3, 0, 6, 0};//149k
+//const double scoreParams[NUM_OF_SCORE_PARAMS] = {0.6, 8, 7, 9, 3, 0, 5, 1};//140k
+//const double scoreParams[NUM_OF_SCORE_PARAMS] = {0.5, 8, 7, 9, 3, 0, 0, 0};//159k
+//const double scoreParams[NUM_OF_SCORE_PARAMS] = {0.5, 8, 7, 9, 2, 0, 6, 0};//149k
 
 const string I_BLOCK_NAME = "I_Block";
 const string J_BLOCK_NAME = "J_Block";

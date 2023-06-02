@@ -18,8 +18,6 @@ void initField(Matrix& field);
 void init(Matrix& field, int& score, int& totalClearedLines, int& numOfTetris, int& numOfClearingLines, int& posInArrOfRandPiece, int arrOfRandPieceTypes[LENGTH_OF_ARRAY_WITH_RAND_PIECES]);
 void arrayBiasToLeftTop(array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE>& arr);
 void printField(Matrix& field, Piece *heldPiece, array<int, 4> statArr, Queue &queueOfRandPieceTypes);
-void fillMatrixWith(char **matrix, int height, int width, char c);
-void printMatrix(char **matrix, int height, int width);
 void swapPiece(Piece *&a, Piece *&b);
 list<string> getInputList(bool notO_Block);
 int minPosX(const array<pair<int, int>, NUM_OF_BLOCK_IN_PIECE> &arr, int startPos);

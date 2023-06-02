@@ -19,10 +19,8 @@ float getPercent(int dividend, int divisor, int precision = 2);
 bool smpStr(const string& a, const string& b);
 void printStr(const string& str);
 bool getTrueWithProbability(int probability);
-char **createMatrix(int height, int width);
-char **connectMatrixHorizontal(char **m1, char **m2, char emptyPixel, int m1Height, int m1Width, int m2Height, int m2Width, int m2TopBias = 0, int m2LeftBias = 0);
-char **connectMatrixVertical(char **m1, char **m2, char emptyPixel, int m1Height, int m1Width, int m2Height, int m2Width, int m2TopBias = 0, int m2LeftBias = 0);
 void error(string str);
 void roundToZero(double &n);
+double round(double number, int digits);
 
 #endif //TETRIS_FUNCTIONS_H

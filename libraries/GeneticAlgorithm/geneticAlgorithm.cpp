@@ -30,7 +30,8 @@ double fitness(Species species) {
     array<int, 4> result = AI(false, species.gens, 0);
     // result = {score, totalClearedLines, numOfTetris, numOfClearingLines}
     if (result[3] != 0) {
-        return result[1] * (double)result[2] / result[3];
+        return result[0];
+//        return result[1] * (double)result[2] / result[3];
     }
     return 0;
 }
@@ -198,8 +199,8 @@ void trainAI() {
         chrono::duration<float> generationDuration = generationEndTime - generationStartTime;
         chrono::duration<float> totalDuration = generationEndTime - totalStartTime;
 
-        cout << endl << "Generation time: " << generationDuration.count() << endl;
-        cout << "Total time: " << totalDuration.count() << endl << endl;
+        cout << endl << "Generation time: in seconds: " << round(generationDuration.count(), TIME_ROUND_DIGITS) << ";  in minutes: " << round(generationDuration.count() / 60, TIME_ROUND_DIGITS) << endl;
+        cout << "Total time: in seconds: " << round(totalDuration.count(), TIME_ROUND_DIGITS) << ";  in minutes: " << round(totalDuration.count() / 60, TIME_ROUND_DIGITS) << endl << endl;
 
         if (SAVE_POPULATION_TO_FILE) {
             savePopulation(population, genNum + i + 1);
