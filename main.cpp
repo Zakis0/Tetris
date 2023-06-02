@@ -3,9 +3,9 @@
 #include "libraries/GeneticAlgorithm/geneticAlgorithm.h"
 
 int main() {
-//    player();
+    player();
 //    testAI(10);
-    AI(true, scoreParams, 0);
+//    AI(true, scoreParams, 0);
 //    trainAI();
     return 0;
 }

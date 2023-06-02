@@ -10,3 +10,13 @@
 3	697	1684228781373285024	CMakeFiles/Tetris.dir/libraries/Error/error.cpp.o	a51e73b6d906aee
 3	1505	1684228782181264953	CMakeFiles/Tetris.dir/libraries/GeneticAlgorithm/geneticAlgorithm.cpp.o	c0fa6561cc7c790c
 1	992	1684229935649847300	CMakeFiles/Tetris.dir/main.cpp.o	4560f440ff9d1932
+2	587	1685720143136570593	CMakeFiles/Tetris.dir/libraries/MyQueue/myQueue.cpp.o	dc90e418dc8130ee
+4	668	1685720143216570850	CMakeFiles/Tetris.dir/libraries/Error/error.cpp.o	a51e73b6d906aee
+4	808	1685720143356571301	CMakeFiles/Tetris.dir/libraries/Matrix/matrix.cpp.o	6c06ca898d112331
+2	862	1685720143408571468	CMakeFiles/Tetris.dir/libraries/Piece/Piece.cpp.o	2ad5e5072ff44a9f
+3	1050	1685720143600572086	CMakeFiles/Tetris.dir/libraries/TetrisFunctions/tetrisFunctions.cpp.o	d9efa481870f16
+1	1136	1685720143684572356	CMakeFiles/Tetris.dir/libraries/Functions/functions.cpp.o	4db2b906c669aba6
+1	1186	1685720143736572523	CMakeFiles/Tetris.dir/main.cpp.o	4560f440ff9d1932
+3	1426	1685720143972573283	CMakeFiles/Tetris.dir/libraries/GeneticAlgorithm/geneticAlgorithm.cpp.o	c0fa6561cc7c790c
+2	1504	1685720144052573543	CMakeFiles/Tetris.dir/libraries/AI/AI.cpp.o	85bbfb8a0683b17e
+1504	1605	1685720144152573869	Tetris	3e796d823fe686b0
