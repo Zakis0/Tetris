@@ -1,6 +1,6 @@
 # Tetris
 
-Тетрис в консоли под управлением ИИ
+Tetris in console with AI
 
 ![Image alt](https://github.com/Zakis0/Tetris/blob/main/Images/1.png)
 
